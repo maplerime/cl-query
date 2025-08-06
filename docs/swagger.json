@@ -1,0 +1,180 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "PetaCloud Query Service",
+        "title": "PETACLOUID Query Service API",
+        "termsOfService": "https://raksmart.com/dev/peta-cloud/terms/",
+        "contact": {
+            "name": "API Support",
+            "url": "https://raksmart.com/dev/support",
+            "email": "dev-support@raksmart.com"
+        },
+        "version": "1.0.0"
+    },
+    "basePath": "/query/v1",
+    "paths": {
+        "/query/v1/resources": {
+            "post": {
+                "description": "通过资源类型查询不同类型的资源列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "资源查询"
+                ],
+                "summary": "统一资源查询",
+                "parameters": [
+                    {
+                        "description": "查询请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/adapters.ResourceQueryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询结果",
+                        "schema": {}
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/common.APIError"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/common.APIError"
+                        }
+                    }
+                }
+            }
+        },
+        "/query/v1/resources/{resource_type}/{id}": {
+            "get": {
+                "description": "通过资源类型和 ID 获取单个资源的详细信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "资源查询"
+                ],
+                "summary": "获取单个资源详情",
+                "parameters": [
+                    {
+                        "enum": [
+                            "instance",
+                            "secgroup",
+                            "secrule",
+                            "subnet",
+                            "volume",
+                            "floatingip"
+                        ],
+                        "type": "string",
+                        "description": "资源类型",
+                        "name": "resource_type",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "资源ID（UUID）",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "资源详情",
+                        "schema": {}
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/common.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "资源不存在",
+                        "schema": {
+                            "$ref": "#/definitions/common.APIError"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/common.APIError"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "adapters.ResourceQueryRequest": {
+            "type": "object",
+            "required": [
+                "resource_type"
+            ],
+            "properties": {
+                "filters": {
+                    "description": "查询过滤条件",
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "limit": {
+                    "description": "限制数量",
+                    "type": "integer",
+                    "example": 16
+                },
+                "offset": {
+                    "description": "偏移量",
+                    "type": "integer",
+                    "example": 0
+                },
+                "order": {
+                    "description": "排序字段",
+                    "type": "string",
+                    "example": "created_at"
+                },
+                "resource_type": {
+                    "description": "资源类型",
+                    "type": "string",
+                    "example": "instance"
+                }
+            }
+        },
+        "common.APIError": {
+            "type": "object",
+            "properties": {
+                "error_message": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "type": "apiKey",
+            "name": "X-API-Key",
+            "in": "header"
+        },
+        "JwtAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    },
+    "externalDocs": {
+        "description": "PetaCloud API documentation",
+        "url": "https://raksmart.com/dev/peta-cloud/docs"
+    }
+}

@@ -1,0 +1,230 @@
+/*
+Copyright <holder> All Rights Reserved.
+
+SPDX-License-Identifier: Apache-2.0
+
+*/
+
+package services
+
+import (
+	"context"
+	"fmt"
+	"web/src/model"
+
+	"github.com/jinzhu/gorm"
+	. "github.com/maplerime/cl-query/pkg/common"
+	"github.com/maplerime/cl-query/pkg/dbs"
+)
+
+type InstanceAdmin struct{}
+
+type ExecutionCommand struct {
+	Control string
+	Command string
+}
+
+type NetworkLink struct {
+	MacAddr string `json:"ethernet_mac_address"`
+	Mtu     uint   `json:"mtu"`
+	ID      string `json:"id"`
+	Type    string `json:"type,omitempty"`
+}
+
+type VolumeInfo struct {
+	ID      int64  `json:"id"`
+	UUID    string `json:"uuid"`
+	Device  string `json:"device"`
+	Booting bool   `json:"booting"`
+}
+
+type InstanceNetwork struct {
+	Type    string          `json:"type,omitempty"`
+	Address string          `json:"ip_address"`
+	Netmask string          `json:"netmask"`
+	Link    string          `json:"link"`
+	ID      string          `json:"id"`
+	Routes  []*NetworkRoute `json:"routes,omitempty"`
+}
+
+type InstanceData struct {
+	Userdata   string             `json:"userdata"`
+	DNS        string             `json:"dns"`
+	Vlans      []*VlanInfo        `json:"vlans"`
+	Networks   []*InstanceNetwork `json:"networks"`
+	Links      []*NetworkLink     `json:"links"`
+	Volumes    []*VolumeInfo      `json:"volumes"`
+	Keys       []string           `json:"keys"`
+	RootPasswd string             `json:"root_passwd"`
+	LoginPort  int                `json:"login_port"`
+	OSCode     string             `json:"os_code"`
+}
+
+type InstancesData struct {
+	Instances []*model.Instance `json:"instancedata"`
+	IsAdmin   bool              `json:"is_admin"`
+}
+
+func (a *InstanceAdmin) GetHyperGroup(ctx context.Context, zoneID int64, skipHyper int32) (hyperGroup string, err error) {
+	ctx, db := GetContextDB(ctx)
+	hypers := []*model.Hyper{}
+	where := fmt.Sprintf("zone_id = %d and status = 1 and hostid <> %d", zoneID, skipHyper)
+	if err = db.Where(where).Find(&hypers).Error; err != nil {
+		logger.Error("Hypers query failed", err)
+		return
+	}
+	if len(hypers) == 0 {
+		logger.Error("No qualified hypervisor")
+		return
+	}
+	hyperGroup = fmt.Sprintf("group-zone-%d", zoneID)
+	for i, h := range hypers {
+		if i == 0 {
+			hyperGroup = fmt.Sprintf("%s:%d", hyperGroup, h.Hostid)
+		} else {
+			hyperGroup = fmt.Sprintf("%s,%d", hyperGroup, h.Hostid)
+		}
+	}
+	return
+}
+
+func (a *InstanceAdmin) Get(ctx context.Context, id int64) (instance *model.Instance, err error) {
+	if id <= 0 {
+		err = fmt.Errorf("Invalid instance ID: %d", id)
+		logger.Error(err)
+		return
+	}
+	ctx, db := GetContextDB(ctx)
+	memberShip := GetMemberShip(ctx)
+	where := memberShip.GetWhere()
+	instance = &model.Instance{Model: model.Model{ID: id}}
+	if err = db.Preload("Volumes").Preload("Image").Preload("Zone").Preload("Flavor").Preload("Keys").Where(where).Take(instance).Error; err != nil {
+		logger.Errorf("Failed to query instance, %v", err)
+		return
+	}
+
+	if err = db.Preload("Group").Preload("Subnet").Where("instance_id = ?", instance.ID).Order("updated_at").Find(&instance.FloatingIps).Error; err != nil {
+		logger.Errorf("Failed to query floating ip(s), %v", err)
+		return
+	}
+	if err = db.Preload("SiteSubnets").Preload("SiteSubnets.Group").Preload("SecurityGroups").Preload("Address").Preload("Address.Subnet").Preload("SecondAddresses", func(db *gorm.DB) *gorm.DB {
+		return db.Order("addresses.updated_at")
+	}).Preload("SecondAddresses.Subnet").Where("instance = ?", instance.ID).Find(&instance.Interfaces).Error; err != nil {
+		logger.Errorf("Failed to query interfaces %v", err)
+		return
+	}
+	permit := memberShip.ValidateOwner(model.Reader, instance.Owner)
+	if !permit {
+		logger.Error("Not authorized to read the instance")
+		err = fmt.Errorf("Not authorized")
+		return
+	}
+	permit = memberShip.CheckPermission(model.Admin)
+	if permit {
+		instance.OwnerInfo = &model.Organization{Model: model.Model{ID: instance.Owner}}
+		if err = db.Take(instance.OwnerInfo).Error; err != nil {
+			logger.Error("Failed to query owner info", err)
+			return
+		}
+	}
+
+	return
+}
+
+func (a *InstanceAdmin) GetInstanceByUUID(ctx context.Context, uuID string) (instance *model.Instance, err error) {
+	ctx, db := GetContextDB(ctx)
+	memberShip := GetMemberShip(ctx)
+	where := memberShip.GetWhere()
+	instance = &model.Instance{}
+	if err = db.Preload("Volumes").Preload("Image").Preload("Zone").Preload("Flavor").Preload("Keys").Where(where).Where("uuid = ?", uuID).Take(instance).Error; err != nil {
+		logger.Errorf("Failed to query instance, %v", err)
+		return
+	}
+
+	if err = db.Preload("Group").Preload("Subnet").Where("instance_id = ?", instance.ID).Order("updated_at").Find(&instance.FloatingIps).Error; err != nil {
+		logger.Errorf("Failed to query floating ip(s), %v", err)
+		return
+	}
+	if err = db.Preload("SiteSubnets").Preload("SiteSubnets.Group").Preload("SecurityGroups").Preload("Address").Preload("Address.Subnet").Preload("SecondAddresses", func(db *gorm.DB) *gorm.DB {
+		return db.Order("addresses.updated_at")
+	}).Preload("SecondAddresses.Subnet").Where("instance = ?", instance.ID).Find(&instance.Interfaces).Error; err != nil {
+		logger.Errorf("Failed to query interfaces %v", err)
+		return
+	}
+	if instance.RouterID > 0 {
+		instance.Router = &model.Router{Model: model.Model{ID: instance.RouterID}}
+		if err = db.Take(instance.Router).Error; err != nil {
+			logger.Errorf("Failed to query floating ip(s), %v", err)
+			return
+		}
+	}
+	permit := memberShip.ValidateOwner(model.Reader, instance.Owner)
+	if !permit {
+		logger.Error("Not authorized to read the instance")
+		err = fmt.Errorf("Not authorized")
+		return
+	}
+	return
+}
+
+func (a *InstanceAdmin) List(ctx context.Context, offset, limit int64, order, query string) (total int64, instances []*model.Instance, err error) {
+	memberShip := GetMemberShip(ctx)
+	permit := memberShip.CheckPermission(model.Reader)
+	if !permit {
+		logger.Error("Not authorized for this operation")
+		err = fmt.Errorf("Not authorized")
+		return
+	}
+	db := DB()
+	if limit == 0 {
+		limit = 16
+	}
+
+	if order == "" {
+		order = "created_at"
+	}
+	logger.Debugf("The query in admin console is %s", query)
+
+	where := memberShip.GetWhere()
+	instances = []*model.Instance{}
+	if err = db.Model(&model.Instance{}).Where(where).Where(query).Count(&total).Error; err != nil {
+		return
+	}
+	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
+	if err = db.Preload("Volumes").Preload("Image").Preload("Zone").Preload("Flavor").Preload("Keys").Where(where).Where(query).Find(&instances).Error; err != nil {
+		logger.Errorf("Failed to query instance(s), %v", err)
+		return
+	}
+	db = db.Offset(0).Limit(-1)
+	for _, instance := range instances {
+		if err = db.Preload("SiteSubnets").Preload("SiteSubnets.Group").Preload("SecurityGroups").Preload("Address").Preload("Address.Subnet").Preload("SecondAddresses", func(db *gorm.DB) *gorm.DB {
+			return db.Order("addresses.updated_at")
+		}).Preload("SecondAddresses.Subnet").Where("instance = ?", instance.ID).Find(&instance.Interfaces).Error; err != nil {
+			logger.Errorf("Failed to query interfaces %v", err)
+			return
+		}
+
+		if err = db.Preload("Group").Preload("Subnet").Order("updated_at").Where("instance_id = ?", instance.ID).Find(&instance.FloatingIps).Error; err != nil {
+			logger.Errorf("Failed to query floating ip(s), %v", err)
+			return
+		}
+
+		if instance.RouterID > 0 {
+			instance.Router = &model.Router{Model: model.Model{ID: instance.RouterID}}
+			if err = db.Take(instance.Router).Error; err != nil {
+				logger.Errorf("Failed to query floating ip(s), %v", err)
+				return
+			}
+		}
+		permit := memberShip.CheckPermission(model.Admin)
+		if permit {
+			instance.OwnerInfo = &model.Organization{Model: model.Model{ID: instance.Owner}}
+			if err = db.Take(instance.OwnerInfo).Error; err != nil {
+				logger.Error("Failed to query owner info", err)
+				return
+			}
+		}
+	}
+
+	return
+}

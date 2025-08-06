@@ -1,0 +1,95 @@
+/**
+ * Licensed Materials - Property of PEG TECH INC
+ *
+ * (C) Copyright PEG TECH INC. 2019 ~ 2025 All Rights Reserved
+ *
+ * Contributors:
+ *    bryan@raksmart.com - Initial implementation
+ *
+ *
+ * Purpose: Resource adapter factory
+ *
+**/
+
+package resources
+
+import (
+	"fmt"
+
+	"github.com/maplerime/cl-query/pkg/api/resources/adapters"
+)
+
+// AdapterFactory 适配器工厂
+type AdapterFactory struct {
+	adapters map[string]func() adapters.ResourceAdapter
+}
+
+// NewAdapterFactory 创建适配器工厂
+func NewAdapterFactory() *AdapterFactory {
+	factory := &AdapterFactory{
+		adapters: make(map[string]func() adapters.ResourceAdapter),
+	}
+	factory.Register("instance", func() adapters.ResourceAdapter {
+		return adapters.NewInstanceAdapter()
+	})
+	factory.Register("volume", func() adapters.ResourceAdapter {
+		return adapters.NewVolumeAdapter()
+	})
+	factory.Register("secgroup", func() adapters.ResourceAdapter {
+		return adapters.NewSecurityGroupAdapter()
+	})
+	factory.Register("secrule", func() adapters.ResourceAdapter {
+		return adapters.NewSecruleAdapter()
+	})
+	factory.Register("hyper", func() adapters.ResourceAdapter {
+		return adapters.NewHyperAdapter()
+	})
+	factory.Register("interface", func() adapters.ResourceAdapter {
+		return adapters.NewInterfaceAdapter()
+	})
+	factory.Register("image", func() adapters.ResourceAdapter {
+		return adapters.NewImageAdapter()
+	})
+	factory.Register("vpc", func() adapters.ResourceAdapter {
+		return adapters.NewVPCAdapter()
+	})
+	factory.Register("ipgroup", func() adapters.ResourceAdapter {
+		return adapters.NewIpGroupAdapter()
+	})
+	factory.Register("floatingip", func() adapters.ResourceAdapter {
+		return adapters.NewFloatingIPAdapter()
+	})
+	factory.Register("subnet", func() adapters.ResourceAdapter {
+		return adapters.NewSubnetAdapter()
+	})
+	factory.Register("ipaddress", func() adapters.ResourceAdapter {
+		return adapters.NewAddressAdapter()
+	})
+	return factory
+}
+
+// Register 注册适配器
+func (f *AdapterFactory) Register(resourceType string, creator func() adapters.ResourceAdapter) {
+	f.adapters[resourceType] = creator
+}
+
+// CreateAdapter 创建适配器
+func (f *AdapterFactory) CreateAdapter(resourceType string) (adapters.ResourceAdapter, error) {
+	creator, exists := f.adapters[resourceType]
+	if !exists {
+		return nil, fmt.Errorf("unsupported resource type: %s", resourceType)
+	}
+	return creator(), nil
+}
+
+// GetSupportedTypes 获取支持的资源类型
+func (f *AdapterFactory) GetSupportedTypes() []string {
+	types := make([]string, 0, len(f.adapters))
+	for resourceType := range f.adapters {
+		types = append(types, resourceType)
+	}
+	return types
+}
+
+// DefaultFactory 全局工厂实例
+var DefaultFactory = NewAdapterFactory()

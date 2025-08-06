@@ -1,0 +1,67 @@
+################################################################################
+#
+#   ServerGeneral Configuration
+#
+#   - This controls the general type and configuration of the Query service.
+#
+################################################################################
+RPCSvc:
+    SVCID: cl-query
+    HTTPSvcCfg:
+        # Listen address: The IP on which to bind to listen.
+        ListenAddress: 0.0.0.0
+        # Listen port: The port on which to bind to listen.
+        ListenPort: 8765
+        AllowedOrigins:
+            - http://127.0.0.1
+            - http://127.0.0.1:8001
+            - http://localhost
+            - http://localhost:8001
+            - http://0.0.0.0:8088
+
+        # TLS: TLS settings for the GRPC server.
+        TLS:
+            Enabled: false
+            PrivateKey: tls/server.key
+            Certificate: tls/server.crt
+            RootCAs:
+            - tls/ca.crt
+            ClientAuthEnabled: false
+            ClientRootCAs:
+
+        # Log Level: The level at which to log. This accepts logging specifications
+        # Valid Levels: "CRITICAL", "ERROR", "WARNING", "NOTICE", "INFO", "DEBUG"
+        Log:
+            LogFile: ./cl-query.log
+            # Log Level: The level at which to log. This accepts logging specifications
+            # Valid Levels: "CRITICAL", "ERROR", "WARNING", "NOTICE", "INFO", "DEBUG"
+            LogLevel: debug
+            # MaxSize is the maximum size in megabytes
+            MaxSize: 10
+            # MaxBackups is the maximum number of old log files to retain
+            MaxBackups: 10
+            # MaxAge is the maximum number of days to retain old log files
+            MaxAge: 30
+
+        # Enable an HTTP service for Go "pprof" profiling as documented at:
+        # https://golang.org/pkg/net/http/pprof
+        Profile:
+            Enabled: false
+            Address: 0.0.0.0:6060
+DebugMode: true
+
+Database:
+    Type: "postgres"
+    Url: "host=127.0.0.1 port=15432 user=postgres password=passw0rd dbname=cloudland sslmode=disable"
+    Debug: true
+    Open: 50
+    Lifetime: 30
+    Idle: 1
+
+IAM:
+    CasbinConf: ./etc/casbin.conf
+
+Token:
+    ExpiresAt: 2h
+    PublicKey: ./etc/public.pem
+    PrivateKey: ./etc/private.pem

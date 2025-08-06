@@ -1,0 +1,126 @@
+basePath: /query/v1
+definitions:
+  adapters.ResourceQueryRequest:
+    properties:
+      filters:
+        additionalProperties: true
+        description: 查询过滤条件
+        type: object
+      limit:
+        description: 限制数量
+        example: 16
+        type: integer
+      offset:
+        description: 偏移量
+        example: 0
+        type: integer
+      order:
+        description: 排序字段
+        example: created_at
+        type: string
+      resource_type:
+        description: 资源类型
+        example: instance
+        type: string
+    required:
+    - resource_type
+    type: object
+  common.APIError:
+    properties:
+      error_message:
+        type: string
+    type: object
+externalDocs:
+  description: PetaCloud API documentation
+  url: https://raksmart.com/dev/peta-cloud/docs
+info:
+  contact:
+    email: dev-support@raksmart.com
+    name: API Support
+    url: https://raksmart.com/dev/support
+  description: PetaCloud Query Service
+  termsOfService: https://raksmart.com/dev/peta-cloud/terms/
+  title: PETACLOUID Query Service API
+  version: 1.0.0
+paths:
+  /query/v1/resources:
+    post:
+      consumes:
+      - application/json
+      description: 通过资源类型查询不同类型的资源列表
+      parameters:
+      - description: 查询请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/adapters.ResourceQueryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 查询结果
+          schema: {}
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/common.APIError'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/common.APIError'
+      summary: 统一资源查询
+      tags:
+      - 资源查询
+  /query/v1/resources/{resource_type}/{id}:
+    get:
+      description: 通过资源类型和 ID 获取单个资源的详细信息
+      parameters:
+      - description: 资源类型
+        enum:
+        - instance
+        - secgroup
+        - secrule
+        - subnet
+        - volume
+        - floatingip
+        in: path
+        name: resource_type
+        required: true
+        type: string
+      - description: 资源ID（UUID）
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 资源详情
+          schema: {}
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/common.APIError'
+        "404":
+          description: 资源不存在
+          schema:
+            $ref: '#/definitions/common.APIError'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/common.APIError'
+      summary: 获取单个资源详情
+      tags:
+      - 资源查询
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: X-API-Key
+    type: apiKey
+  JwtAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

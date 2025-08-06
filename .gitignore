@@ -1,0 +1,15 @@
+.DS_Store
+build
+testdata
+*.log
+.idea/*
+nohup.out
+**/*.pdf
+.history
+.vscode
+go.sum
+vendor/
+./txt
+/**/.DS_Store
+imagename
+image.latest
