@@ -41,7 +41,6 @@ type SecurityGroupListResponse struct {
 
 type SecurityGroupFilters struct {
 	Name  string   `json:"name,omitempty"`
-	UUID  string   `json:"uuid,omitempty" binding:"omitempty,uuid"`
 	UUIDs []string `json:"uuids,omitempty" binding:"omitempty,dive,uuid"`
 	VpcID string   `json:"vpc_id,omitempty" binding:"omitempty,uuid"`
 }
@@ -75,11 +74,6 @@ func (a *SecurityGroupAdapter) MakeQuery(c *gin.Context, filtersMap map[string]i
 	if filters.Name != "" {
 		conditions = append(conditions, fmt.Sprintf("name like '%%%s%%'", filters.Name))
 		logger.Debugf("Added name filter: %s", filters.Name)
-	}
-
-	if filters.UUID != "" {
-		conditions = append(conditions, fmt.Sprintf("uuid = '%s'", filters.UUID))
-		logger.Debugf("Added UUID filter: %s", filters.UUID)
 	}
 
 	if len(filters.UUIDs) > 0 {

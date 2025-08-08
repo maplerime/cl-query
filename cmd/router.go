@@ -15,7 +15,6 @@ package main
 
 import (
 	"context"
-
 	"github.com/maplerime/cl-query/pkg/api"
 
 	"github.com/gin-gonic/gin"
@@ -74,10 +73,9 @@ func NewRouter(ctx *context.Context) *gin.Engine {
 	limit := rate.Limit(float64(rateLimit) / 60.0)
 	r.Use(middleware.RateLimiter(limit, rateLimit))
 	r.Use(middleware.ContentType())
-
+	r.GET("/query/v1", api.GetMetadata)
 	v1 := r.Group("/query/v1").Use(middleware.Authorize())
 	{
-		v1.GET("", api.GetMetadata)
 		v1.POST("/resources", resources.QueryResources)
 		v1.GET("/resources/:resource_type/:id", resources.GetResource)
 	}

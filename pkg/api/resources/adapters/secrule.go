@@ -44,7 +44,7 @@ type SecruleListResponse struct {
 
 type SecruleFilters struct {
 	SecGroupID string `json:"security_group_id" binding:"required,uuid"`
-	Direction  string `json:"direction,omitempty" binding:"omitempty,oneof=ingress egress"`
+	Direction  string `json:"direction" binding:"omitempty,oneof=ingress egress"`
 }
 
 type SecruleAdapter struct {
