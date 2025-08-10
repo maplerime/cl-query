@@ -81,7 +81,7 @@ docs-setup: setup
 	go get github.com/swaggo/files
 
 query-docs: docs-setup
-	swag init -g router.go -dir ./cmd,./pkg/api/resources,./pkg/common -o ./docs/
+	swag init -g router.go -dir ./cmd/querysvc,./pkg/api/resources,./pkg/common -o ./docs/
 
 docs: query-docs
 
@@ -103,7 +103,7 @@ querysvc: build/bin/querysvc
 build/bin/%: setup
 	@mkdir -p $(@D)
 	@echo "$@"
-	$(CGO_FLAGS) GOBIN=$(abspath $(@D)) go install $(EXT_LDFLAGS) $(PKGNAME)/cmd
+	$(CGO_FLAGS) GOBIN=$(abspath $(@D)) go install $(EXT_LDFLAGS) $(PKGNAME)/cmd/$(@F)
 	@echo "Binary available as $@"
 	@touch $@
 

@@ -14,4 +14,4 @@ VOLUME /opt/cl-query/logs
 
 EXPOSE 8765
 
-CMD ./cl-query admin
+CMD ./querysvc
