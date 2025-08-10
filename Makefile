@@ -40,7 +40,7 @@ GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 GIT_COMMIT ?= $(shell git rev-parse --verify HEAD)
 
 PROJECT_NAME=cl-query
-PKGNAME = raksmart.com/rakng/$(PROJECT_NAME)
+PKGNAME = github.com/maplerime/$(PROJECT_NAME)
 
 IS_RELEASE = false
 
@@ -103,7 +103,7 @@ querysvc: build/bin/querysvc
 build/bin/%: setup
 	@mkdir -p $(@D)
 	@echo "$@"
-	$(CGO_FLAGS) GOBIN=$(abspath $(@D)) go install $(EXT_LDFLAGS) $(PKGNAME)/cmd/$(@F)
+	$(CGO_FLAGS) GOBIN=$(abspath $(@D)) go install $(EXT_LDFLAGS) $(PKGNAME)/cmd
 	@echo "Binary available as $@"
 	@touch $@
 
