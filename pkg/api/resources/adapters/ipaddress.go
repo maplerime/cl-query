@@ -216,6 +216,7 @@ func (a *AddressAdapter) getAddressResponse(ctx context.Context, address *model.
 			floatingIp, err = a.floatingIpService.GetFloatingIpByAddress(ctx, address.Address)
 			if err != nil {
 				logger.Errorf("Failed to get floating IP for interface %d, err: %v", iface.ID, err)
+				return addressResp, nil
 			}
 			if err == nil && floatingIp.Instance != nil {
 				owner = orgAdmin.GetOrgName(ctx, floatingIp.Instance.Owner)
