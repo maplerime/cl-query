@@ -47,7 +47,7 @@ func ContextMiddleware() gin.HandlerFunc {
 // @contact.url    https://raksmart.com/dev/support
 // @contact.email  dev-support@raksmart.com
 
-// @BasePath  /query/v1
+// @BasePath  /api/v1
 
 // @securityDefinitions.apikey JwtAuth
 // @in header
@@ -73,14 +73,14 @@ func NewRouter(ctx *context.Context) *gin.Engine {
 	limit := rate.Limit(float64(rateLimit) / 60.0)
 	r.Use(middleware.RateLimiter(limit, rateLimit))
 	r.Use(middleware.ContentType())
-	r.GET("/query/v1", api.GetMetadata)
-	v1 := r.Group("/query/v1").Use(middleware.Authorize())
+	r.GET("/api/v1/query", api.GetMetadata)
+	v1 := r.Group("/api/v1/query").Use(middleware.Authorize())
 	{
 		v1.POST("/resources", resources.QueryResources)
 		v1.GET("/resources/:resource_type/:id", resources.GetResource)
 	}
 
-	docs.SwaggerInfo.BasePath = "/query/v1"
+	docs.SwaggerInfo.BasePath = "/api/v1"
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler, ginSwagger.DocExpansion("none")))
 
 	return r
