@@ -61,8 +61,7 @@ type FloatingIpResponse struct {
 	Inbound         int32            `json:"inbound"`
 	Outbound        int32            `json:"outbound"`
 	Group           *BaseReference   `json:"group,omitempty"`
-	Subnet          *BaseReference   `json:"subnet,omitempty"`
-	Vlan            int64            `json:"vlan,omitempty"`
+	Subnet          *SiteSubnetInfo  `json:"subnet,omitempty"`
 }
 
 type FloatingIpListResponse struct {
@@ -208,11 +207,24 @@ func (a *FloatingIPAdapter) getFloatingIpResponse(ctx context.Context, floatingI
 		}
 	}
 	if floatingIp.Subnet != nil {
-		floatingIpResp.Subnet = &BaseReference{
-			ID:   floatingIp.Subnet.UUID,
-			Name: floatingIp.Subnet.Name,
+		floatingIpResp.Subnet = &SiteSubnetInfo{
+			ResourceReference: &ResourceReference{
+				ID:   floatingIp.Subnet.UUID,
+				Name: floatingIp.Subnet.Name,
+			},
+			Network: floatingIp.Subnet.Network,
+			Netmask: floatingIp.Subnet.Netmask,
+			Gateway: floatingIp.Subnet.Gateway,
+			Start:   floatingIp.Subnet.Start,
+			End:     floatingIp.Subnet.End,
+			Vlan:    floatingIp.Subnet.Vlan,
 		}
-		floatingIpResp.Vlan = floatingIp.Subnet.Vlan
+		if floatingIp.Subnet.Group != nil {
+			floatingIpResp.Subnet.Group = &BaseReference{
+				ID:   floatingIp.Subnet.Group.UUID,
+				Name: floatingIp.Subnet.Group.Name,
+			}
+		}
 	}
 	if floatingIp.Instance != nil && len(floatingIp.Instance.Interfaces) > 0 {
 		instance := floatingIp.Instance

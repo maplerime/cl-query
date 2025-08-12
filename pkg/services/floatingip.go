@@ -34,7 +34,7 @@ func (a *FloatingIpAdmin) Get(ctx context.Context, id int64) (floatingIp *model.
 	ctx, db := GetContextDB(ctx)
 	where := memberShip.GetWhere()
 	floatingIp = &model.FloatingIp{Model: model.Model{ID: id}}
-	err = db.Preload("Interface").Preload("Interface.SecurityGroups").Preload("Interface.Address").Preload("Interface.Address.Subnet").Preload("Subnet").Preload("Group").Where(where).Take(floatingIp).Error
+	err = db.Preload("Interface").Preload("Interface.SecurityGroups").Preload("Interface.Address").Preload("Interface.Address.Subnet").Preload("Subnet").Preload("Subnet.Group").Preload("Group").Where(where).Take(floatingIp).Error
 	if err != nil {
 		logger.Error("DB failed to query floatingIp ", err)
 		return
@@ -70,7 +70,7 @@ func (a *FloatingIpAdmin) GetFloatingIpByUUID(ctx context.Context, uuID string) 
 	memberShip := GetMemberShip(ctx)
 	where := memberShip.GetWhere()
 	floatingIp = &model.FloatingIp{}
-	err = db.Preload("Interface").Preload("Interface.SecurityGroups").Preload("Interface.Address").Preload("Interface.Address.Subnet").Preload("Subnet").Preload("Group").Where(where).Where("uuid = ?", uuID).Take(floatingIp).Error
+	err = db.Preload("Interface").Preload("Interface.SecurityGroups").Preload("Interface.Address").Preload("Interface.Address.Subnet").Preload("Subnet").Preload("Subnet.Group").Preload("Group").Where(where).Where("uuid = ?", uuID).Take(floatingIp).Error
 	if err != nil {
 		logger.Error("Failed to query floatingIp, %v", err)
 		return
@@ -119,7 +119,7 @@ func (a *FloatingIpAdmin) List(ctx context.Context, offset, limit int64, order, 
 		return
 	}
 	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
-	if err = db.Preload("Group").Preload("Instance").Preload("Instance.Zone").Preload("Interface").Preload("Interface.Address").Preload("Interface.Address.Subnet").Preload("Subnet").Where(where).Where(query).Where(intQuery).Find(&floatingIps).Error; err != nil {
+	if err = db.Preload("Group").Preload("Instance").Preload("Instance.Zone").Preload("Interface").Preload("Interface.Address").Preload("Interface.Address.Subnet").Preload("Subnet").Preload("Subnet.Group").Where(where).Where(query).Where(intQuery).Find(&floatingIps).Error; err != nil {
 		logger.Error("DB failed to query floating ip(s), %v", err)
 		return
 	}
