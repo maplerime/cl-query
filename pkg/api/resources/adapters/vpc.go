@@ -29,7 +29,8 @@ var subnetAdapter = NewSubnetAdapter()
 
 type VPCResponse struct {
 	*ResourceReference
-	Subnets []*SubnetResponse `json:"subnets,omitempty"`
+	Subnets   []*SubnetResponse `json:"subnets,omitempty"`
+	Instances []*InstanceInfo   `json:"instances,omitempty"`
 }
 
 type VPCListResponse struct {
@@ -46,15 +47,17 @@ type VPCFilters struct {
 
 type VPCAdapter struct {
 	BaseAdapter
-	service       *services.RouterAdmin
-	subnetService *services.SubnetAdmin
+	service         *services.RouterAdmin
+	subnetService   *services.SubnetAdmin
+	instanceService *services.InstanceAdmin
 }
 
 func NewVPCAdapter() *VPCAdapter {
 	logger.Debug("Creating new VPC adapter")
 	return &VPCAdapter{
-		service:       &services.RouterAdmin{},
-		subnetService: &services.SubnetAdmin{},
+		service:         &services.RouterAdmin{},
+		subnetService:   &services.SubnetAdmin{},
+		instanceService: &services.InstanceAdmin{},
 	}
 }
 
@@ -162,5 +165,19 @@ func (a *VPCAdapter) getVPCResponse(ctx context.Context, router *model.Router) (
 			return
 		}
 	}
+	total, instances, err := a.instanceService.List(ctx, 0, -1, "", fmt.Sprintf("router_id = %d", router.ID))
+	if err != nil {
+		return
+	}
+	vpcResp.Instances = make([]*InstanceInfo, total)
+	for i, instance := range instances {
+		vpcResp.Instances[i] = &InstanceInfo{
+			ResourceReference: &ResourceReference{
+				ID: instance.UUID,
+			},
+			Hostname: instance.Hostname,
+		}
+	}
+
 	return
 }
