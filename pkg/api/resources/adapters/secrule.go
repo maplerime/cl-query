@@ -33,6 +33,7 @@ type SecruleResponse struct {
 	Protocol    string         `json:"protocol"`
 	PortMin     int32          `json:"port_min"`
 	PortMax     int32          `json:"port_max"`
+	Name        string         `json:"name"`
 }
 
 type SecruleListResponse struct {
@@ -162,6 +163,7 @@ func (a *SecruleAdapter) getSecruleResponse(ctx context.Context, secrule *model.
 		Direction: secrule.Direction,
 		IpVersion: secrule.IpVersion,
 		Protocol:  secrule.Protocol,
+		Name:      secrule.Name,
 	}
 
 	if secrule.RemoteIp != "" {
