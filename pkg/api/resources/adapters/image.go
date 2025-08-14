@@ -149,12 +149,12 @@ func (a *ImageAdapter) Get(c *gin.Context, id string) (resp interface{}, err err
 		return
 	}
 
-	result, err := a.getImageResponse(ctx, image)
+	resp, err = a.getImageResponse(ctx, image)
 	if err != nil {
 		return
 	}
 
-	logger.Debugf("Get image successfully: %+v", result)
+	logger.Debugf("Get image successfully: %+v", resp)
 	return
 }
 
