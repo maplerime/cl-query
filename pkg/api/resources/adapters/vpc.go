@@ -165,7 +165,7 @@ func (a *VPCAdapter) getVPCResponse(ctx context.Context, router *model.Router) (
 			return
 		}
 	}
-	total, instances, err := a.instanceService.List(ctx, 0, -1, "", fmt.Sprintf("router_id = %d", router.ID))
+	total, instances, err := a.instanceService.BaseList(ctx, 0, -1, "", fmt.Sprintf("router_id = %d", router.ID))
 	if err != nil {
 		return
 	}

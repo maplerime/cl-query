@@ -43,7 +43,7 @@ type HyperListResponse struct {
 
 type HyperFilters struct {
 	Hostname string `json:"hostname,omitempty"`
-	Status   int    `json:"status,omitempty" binding:"omitempty"`
+	Status   *int   `json:"status,omitempty" binding:"omitempty"`
 }
 
 type HyperAdapter struct {
@@ -75,9 +75,9 @@ func (a *HyperAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interface
 	}
 
 	// 状态查询
-	if filters.Status != 0 {
-		conditions = append(conditions, fmt.Sprintf("status = %d", filters.Status))
-		logger.Debugf("Added status filter: %s", filters.Status)
+	if filters.Status != nil {
+		conditions = append(conditions, fmt.Sprintf("status = %d", *filters.Status))
+		logger.Debugf("Added status filter: %d", *filters.Status)
 	}
 
 	if len(conditions) > 0 {

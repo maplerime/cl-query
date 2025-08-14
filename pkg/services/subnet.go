@@ -179,8 +179,13 @@ func (a *SubnetAdmin) List(ctx context.Context, offset, limit int64, order, quer
 		order = "created_at"
 	}
 
-	memberShip := GetMemberShip(ctx)
-	where := memberShip.GetWhere()
+	m := GetMemberShip(ctx)
+	where := ""
+	if m.OrgName == "admin" && m.Role == model.Admin {
+		where = ""
+	} else {
+		where = fmt.Sprintf("subnets.owner = %d", m.OrgID)
+	}
 	subnets = []*model.Subnet{}
 
 	// 始终连接 addresses 表
@@ -212,7 +217,7 @@ func (a *SubnetAdmin) List(ctx context.Context, offset, limit int64, order, quer
 		return
 	}
 
-	permit := memberShip.CheckPermission(model.Admin)
+	permit := m.CheckPermission(model.Admin)
 	if permit {
 		ownerQuery := db.Offset(0).Limit(-1)
 		for _, subnet := range subnets {

@@ -228,3 +228,34 @@ func (a *InstanceAdmin) List(ctx context.Context, offset, limit int64, order, qu
 
 	return
 }
+
+func (a *InstanceAdmin) BaseList(ctx context.Context, offset, limit int64, order, query string) (total int64, instances []*model.Instance, err error) {
+	memberShip := GetMemberShip(ctx)
+	permit := memberShip.CheckPermission(model.Reader)
+	if !permit {
+		logger.Error("Not authorized for this operation")
+		err = fmt.Errorf("Not authorized")
+		return
+	}
+	db := DB()
+	if limit == 0 {
+		limit = 16
+	}
+
+	if order == "" {
+		order = "created_at"
+	}
+	logger.Debugf("The query in admin console is %s", query)
+
+	where := memberShip.GetWhere()
+	instances = []*model.Instance{}
+	if err = db.Model(&model.Instance{}).Where(where).Where(query).Count(&total).Error; err != nil {
+		return
+	}
+	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
+	if err = db.Where(where).Where(query).Find(&instances).Error; err != nil {
+		logger.Errorf("Failed to query instance(s), %v", err)
+		return
+	}
+	return
+}
