@@ -15,6 +15,7 @@ package adapters
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"web/src/model"
 
@@ -143,8 +144,23 @@ func (a *HyperAdapter) List(c *gin.Context, req *ResourceQueryRequest) (interfac
 	return hyperListResp, nil
 }
 
-func (a *HyperAdapter) Get(c *gin.Context, id string) (interface{}, error) {
-	return nil, nil
+func (a *HyperAdapter) Get(c *gin.Context, id string) (resp interface{}, err error) {
+	logger.Debugf("Starting Hyper get query with HostID: %s", id)
+
+	hostID, err := strconv.ParseInt(id, 10, 32)
+	if err != nil {
+		return
+	}
+
+	ctx := c.Request.Context()
+	hyper, err := a.service.GetHyperByHostid(ctx, int32(hostID))
+	if err != nil {
+		return
+	}
+
+	resp = a.getHyperResponse(hyper)
+	logger.Debugf("Get hyper successfully: %+v", resp)
+	return
 }
 
 func (a *HyperAdapter) getHyperResponse(hyper *model.Hyper) *HyperResponse {
