@@ -56,10 +56,12 @@ type InstanceListResponse struct {
 type InstanceFilters struct {
 	Hostname        string   `json:"hostname,omitempty"`
 	Status          string   `json:"status,omitempty" binding:"omitempty"`
+	UUID            string   `json:"uuid,omitempty" binding:"omitempty,uuid"`
 	UUIDs           []string `json:"uuids,omitempty" binding:"omitempty,dive,uuid"`
 	VpcID           string   `json:"vpc_id,omitempty" binding:"omitempty,uuid"`
 	VpcIDs          []string `json:"vpc_ids,omitempty" binding:"omitempty,dive,uuid"`
 	SecurityGroupID string   `json:"security_group_id,omitempty" binding:"omitempty,uuid"`
+	Hyper           string   `json:"hyper,omitempty" binding:"omitempty"`
 }
 
 type InstanceAdapter struct {
@@ -67,6 +69,7 @@ type InstanceAdapter struct {
 	service         *services.InstanceAdmin
 	routerService   *services.RouterAdmin
 	secgroupService *services.SecgroupAdmin
+	hyperService    *services.HyperAdmin
 }
 
 var interfaceAdapter = NewInterfaceAdapter()
@@ -77,6 +80,7 @@ func NewInstanceAdapter() *InstanceAdapter {
 		service:         &services.InstanceAdmin{},
 		routerService:   &services.RouterAdmin{},
 		secgroupService: &services.SecgroupAdmin{},
+		hyperService:    &services.HyperAdmin{},
 	}
 }
 
@@ -89,6 +93,12 @@ func (a *InstanceAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interf
 	}
 
 	var conditions []string
+
+	// uuid查询
+	if filters.UUID != "" {
+		conditions = append(conditions, fmt.Sprintf("uuid = '%s'", filters.UUID))
+		logger.Debugf("Added UUID filter: %s", filters.UUID)
+	}
 
 	// hostname查询
 	if filters.Hostname != "" {
@@ -154,6 +164,18 @@ func (a *InstanceAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interf
 			}
 			conditions = append(conditions, fmt.Sprintf("id IN (%s)", strings.Join(instanceIDs, ",")))
 		}
+	}
+
+	// hyper查询
+	if filters.Hyper != "" {
+		hyper := &model.Hyper{}
+		hyper, err = hyperAdmin.GetHyperByHostname(c.Request.Context(), filters.Hyper)
+		if err != nil {
+			logger.Errorf("Failed to get hyper by hostname %s: %v", filters.Hyper, err)
+			return
+		}
+		conditions = append(conditions, fmt.Sprintf("hyper = %d", hyper.Hostid))
+		logger.Debugf("Added hyper filter: %s", filters.Hyper)
 	}
 
 	if len(conditions) > 0 {

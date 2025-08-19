@@ -14,28 +14,40 @@
 package adapters
 
 import (
-	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"web/src/model"
 
 	"github.com/gin-gonic/gin"
 
-	. "github.com/maplerime/cl-query/pkg/common"
 	"github.com/maplerime/cl-query/pkg/services"
 )
 
 type HyperResponse struct {
-	*BaseReference
-	Cpu    int64 `json:"cpu"`
-	Memory int64 `json:"memory"`
-	Disk   int64 `json:"disk"`
-	Hostid int32 `json:"hostid"`
+	Hostid       int32   `json:"hostid"`
+	Hostname     string  `json:"hostname"`
+	Status       int32   `json:"status"`
+	StatusName   string  `json:"status_name"`
+	Parentid     int32   `json:"parentid"`
+	Children     int32   `json:"children"`
+	HostIP       string  `json:"host_ip"`
+	RouteIP      string  `json:"route_ip"`
+	VirtType     string  `json:"virt_type"`
+	CpuOverRate  float32 `json:"cpu_over_rate"`
+	MemOverRate  float32 `json:"mem_over_rate"`
+	DiskOverRate float32 `json:"disk_over_rate"`
+	ZoneID       int64   `json:"zone_id"`
+	ZoneName     string  `json:"zone_name"`
+	Remark       string  `json:"remark"`
+	Cpu          int64   `json:"cpu"`
+	Memory       int64   `json:"memory"`
+	Disk         int64   `json:"disk"`
+	CpuTotal     int64   `json:"cpu_total"`
+	MemoryTotal  int64   `json:"memory_total"`
+	DiskTotal    int64   `json:"disk_total"`
 }
 
 type HyperListResponse struct {
-	*ResourceReference
 	Total  int              `json:"total"`
 	Limit  int              `json:"limit"`
 	Hypers []*HyperResponse `json:"hypers"`
@@ -112,7 +124,7 @@ func (a *HyperAdapter) List(c *gin.Context, req *ResourceQueryRequest) (interfac
 	// 构建响应
 	hyperResponses := make([]*HyperResponse, len(hypers))
 	for i, hyper := range hypers {
-		hyperResp, err := a.getHyperResponse(ctx, hyper)
+		hyperResp := a.getHyperResponse(hyper)
 		if err != nil {
 			logger.Errorf("Failed to create hyper response: %v", err)
 			return nil, err
@@ -122,10 +134,6 @@ func (a *HyperAdapter) List(c *gin.Context, req *ResourceQueryRequest) (interfac
 
 	// 返回响应
 	hyperListResp := &HyperListResponse{
-		ResourceReference: &ResourceReference{
-			ID:   "hyper-list",
-			Name: "Hyper List",
-		},
 		Total:  int(total),
 		Limit:  req.Limit,
 		Hypers: hyperResponses,
@@ -139,16 +147,36 @@ func (a *HyperAdapter) Get(c *gin.Context, id string) (interface{}, error) {
 	return nil, nil
 }
 
-func (a *HyperAdapter) getHyperResponse(ctx context.Context, hyper *model.Hyper) (*HyperResponse, error) {
-	hyperResp := &HyperResponse{
-		BaseReference: &BaseReference{
-			ID:   strconv.Itoa(int(hyper.Hostid)),
-			Name: hyper.Hostname,
-		},
-		Cpu:    hyper.Resource.Cpu,
-		Memory: hyper.Resource.Memory,
-		Disk:   hyper.Resource.Disk,
-		Hostid: hyper.Hostid,
+func (a *HyperAdapter) getHyperResponse(hyper *model.Hyper) *HyperResponse {
+	resp := &HyperResponse{
+		Hostid:       hyper.Hostid,
+		Hostname:     hyper.Hostname,
+		Status:       hyper.Status,
+		StatusName:   hyper.GetStatus(),
+		Parentid:     hyper.Parentid,
+		Children:     hyper.Children,
+		HostIP:       hyper.HostIP,
+		RouteIP:      hyper.RouteIP,
+		VirtType:     hyper.VirtType,
+		CpuOverRate:  hyper.CpuOverRate,
+		MemOverRate:  hyper.MemOverRate,
+		DiskOverRate: hyper.DiskOverRate,
+		ZoneID:       hyper.ZoneID,
+		Remark:       hyper.Remark,
 	}
-	return hyperResp, nil
+
+	if hyper.Zone != nil {
+		resp.ZoneName = hyper.Zone.Name
+	}
+
+	if hyper.Resource != nil {
+		resp.Cpu = hyper.Resource.Cpu
+		resp.Memory = hyper.Resource.Memory / 1024             // Convert KB to MB
+		resp.Disk = hyper.Resource.Disk / (1024 * 1024 * 1024) // Convert B to GB
+		resp.CpuTotal = hyper.Resource.CpuTotal
+		resp.MemoryTotal = hyper.Resource.MemoryTotal / 1024             // Convert KB to MB
+		resp.DiskTotal = hyper.Resource.DiskTotal / (1024 * 1024 * 1024) // Convert B to GB
+	}
+
+	return resp
 }
