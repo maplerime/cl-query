@@ -53,11 +53,21 @@ func (a *HyperAdmin) GetHyperByHostid(ctx context.Context, hostid int32) (hyper 
 		logger.Error("Not authorized for this operation", err)
 		return
 	}
-	ctx, db := GetContextDB(ctx)
+	_, db := GetContextDB(ctx)
 	hyper = &model.Hyper{}
-	if err = db.Where("hostid = ?", hostid).Take(hyper).Error; err != nil {
+	if err = db.Preload("Zone").Where("hostid = ?", hostid).Take(hyper).Error; err != nil {
 		logger.Error("Failed to query hypervisor", err)
 		return
+	}
+
+	// Load resource information
+	hyper.Resource = &model.Resource{}
+	err = db.Where("hostid = ?", hyper.Hostid).Take(hyper.Resource).Error
+	if err != nil {
+		logger.Warning("Failed to query hypervisor resource, setting defaults", err)
+		hyper.Resource = &model.Resource{
+			Hostid: hyper.Hostid,
+		}
 	}
 	return
 }
