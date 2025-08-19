@@ -259,3 +259,28 @@ func (a *InstanceAdmin) BaseList(ctx context.Context, offset, limit int64, order
 	}
 	return
 }
+
+func (a *InstanceAdmin) GetInstanceCount(ctx context.Context, query string) (count int64, err error) {
+	memberShip := GetMemberShip(ctx)
+	permit := memberShip.CheckPermission(model.Reader)
+	if !permit {
+		logger.Error("Not authorized for this operation")
+		err = fmt.Errorf("Not authorized")
+		return
+	}
+
+	ctx, db := GetContextDB(ctx)
+	where := memberShip.GetWhere()
+
+	if err = db.Model(&model.Instance{}).Where(where).Where(query).Count(&count).Error; err != nil {
+		logger.Errorf("Failed to count instances, %v", err)
+		return
+	}
+
+	return
+}
+
+func (a *InstanceAdmin) GetInstanceCountByHyper(ctx context.Context, hostid int32) (count int64, err error) {
+	query := fmt.Sprintf("hyper=%d", hostid)
+	return a.GetInstanceCount(ctx, query)
+}

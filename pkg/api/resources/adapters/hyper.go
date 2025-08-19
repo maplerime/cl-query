@@ -14,6 +14,7 @@
 package adapters
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -46,6 +47,7 @@ type HyperResponse struct {
 	CpuTotal     int64   `json:"cpu_total"`
 	MemoryTotal  int64   `json:"memory_total"`
 	DiskTotal    int64   `json:"disk_total"`
+	VMTotal      int64   `json:"vm_total"`
 }
 
 type HyperListResponse struct {
@@ -61,13 +63,15 @@ type HyperFilters struct {
 
 type HyperAdapter struct {
 	BaseAdapter
-	service *services.HyperAdmin
+	service         *services.HyperAdmin
+	instanceService *services.InstanceAdmin
 }
 
 func NewHyperAdapter() *HyperAdapter {
 	logger.Debug("Creating new Hyper adapter")
 	return &HyperAdapter{
-		service: &services.HyperAdmin{},
+		service:         &services.HyperAdmin{},
+		instanceService: &services.InstanceAdmin{},
 	}
 }
 
@@ -125,7 +129,7 @@ func (a *HyperAdapter) List(c *gin.Context, req *ResourceQueryRequest) (interfac
 	// 构建响应
 	hyperResponses := make([]*HyperResponse, len(hypers))
 	for i, hyper := range hypers {
-		hyperResp := a.getHyperResponse(hyper)
+		hyperResp := a.getHyperResponse(ctx, hyper)
 		if err != nil {
 			logger.Errorf("Failed to create hyper response: %v", err)
 			return nil, err
@@ -158,12 +162,12 @@ func (a *HyperAdapter) Get(c *gin.Context, id string) (resp interface{}, err err
 		return
 	}
 
-	resp = a.getHyperResponse(hyper)
+	resp = a.getHyperResponse(ctx, hyper)
 	logger.Debugf("Get hyper successfully: %+v", resp)
 	return
 }
 
-func (a *HyperAdapter) getHyperResponse(hyper *model.Hyper) *HyperResponse {
+func (a *HyperAdapter) getHyperResponse(ctx context.Context, hyper *model.Hyper) *HyperResponse {
 	resp := &HyperResponse{
 		Hostid:       hyper.Hostid,
 		Hostname:     hyper.Hostname,
@@ -192,6 +196,14 @@ func (a *HyperAdapter) getHyperResponse(hyper *model.Hyper) *HyperResponse {
 		resp.CpuTotal = hyper.Resource.CpuTotal
 		resp.MemoryTotal = hyper.Resource.MemoryTotal / 1024             // Convert KB to MB
 		resp.DiskTotal = hyper.Resource.DiskTotal / (1024 * 1024 * 1024) // Convert B to GB
+	}
+
+	// VM Total
+	count, err := a.instanceService.GetInstanceCountByHyper(ctx, hyper.Hostid)
+	if err != nil {
+		logger.Errorf("Failed to get instance count for hyper %d: %v", hyper.Hostid, err)
+	} else {
+		resp.VMTotal = count
 	}
 
 	return resp
