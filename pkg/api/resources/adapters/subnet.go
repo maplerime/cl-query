@@ -220,6 +220,7 @@ func (a *SubnetAdapter) getSubnetResponse(ctx context.Context, subnet *model.Sub
 		Gateway:    subnet.Gateway,
 		NameServer: subnet.NameServer,
 		Type:       subnet.Type,
+		Vlan:       int(subnet.Vlan),
 	}
 	if subnet.Router != nil {
 		router := subnet.Router

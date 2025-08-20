@@ -51,6 +51,7 @@ type FloatingIpFilters struct {
 	Name       string   `json:"name,omitempty"`
 	InstanceID string   `json:"instance_id,omitempty"`
 	UUIDs      []string `json:"uuids,omitempty"`
+	IsIdle     *bool    `json:"is_idle,omitempty"` // 是否查询空闲的/非空闲的
 }
 
 type FloatingIpResponse struct {
@@ -115,6 +116,16 @@ func (a *FloatingIPAdapter) MakeQuery(c *gin.Context, filtersMap map[string]inte
 		}
 		conditions = append(conditions, fmt.Sprintf("instance_id = %d", instance.ID))
 		logger.Debugf("Added instance_id filter: %d", instance.ID)
+	}
+
+	if filters.IsIdle != nil {
+		if *filters.IsIdle == true {
+			// 查找空闲没有挂载到实例的
+			conditions = append(conditions, "instance_id = 0")
+		} else {
+			// 查找已经挂载到实例的
+			conditions = append(conditions, "instance_id != 0")
+		}
 	}
 
 	if len(conditions) > 0 {
