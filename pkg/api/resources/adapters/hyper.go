@@ -191,10 +191,10 @@ func (a *HyperAdapter) getHyperResponse(ctx context.Context, hyper *model.Hyper)
 
 	if hyper.Resource != nil {
 		resp.Cpu = hyper.Resource.Cpu
-		resp.Memory = hyper.Resource.Memory / 1024             // Convert KB to MB
+		resp.Memory = hyper.Resource.Memory / (1024 * 1024)    // Convert KB to GB
 		resp.Disk = hyper.Resource.Disk / (1024 * 1024 * 1024) // Convert B to GB
 		resp.CpuTotal = hyper.Resource.CpuTotal
-		resp.MemoryTotal = hyper.Resource.MemoryTotal / 1024             // Convert KB to MB
+		resp.MemoryTotal = hyper.Resource.MemoryTotal / (1024 * 1024)    // Convert KB to GB
 		resp.DiskTotal = hyper.Resource.DiskTotal / (1024 * 1024 * 1024) // Convert B to GB
 	}
 

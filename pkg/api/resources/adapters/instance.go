@@ -61,7 +61,8 @@ type InstanceFilters struct {
 	VpcID           string   `json:"vpc_id,omitempty" binding:"omitempty,uuid"`
 	VpcIDs          []string `json:"vpc_ids,omitempty" binding:"omitempty,dive,uuid"`
 	SecurityGroupID string   `json:"security_group_id,omitempty" binding:"omitempty,uuid"`
-	Hyper           string   `json:"hyper,omitempty" binding:"omitempty"`
+	Hyper           *int32   `json:"hyper,omitempty" binding:"omitempty"`
+	Keyword         string   `json:"keyword,omitempty" binding:"omitempty"`
 }
 
 type InstanceAdapter struct {
@@ -96,25 +97,25 @@ func (a *InstanceAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interf
 
 	// uuid查询
 	if filters.UUID != "" {
-		conditions = append(conditions, fmt.Sprintf("uuid = '%s'", filters.UUID))
+		conditions = append(conditions, fmt.Sprintf("instances.uuid = '%s'", filters.UUID))
 		logger.Debugf("Added UUID filter: %s", filters.UUID)
 	}
 
 	// hostname查询
 	if filters.Hostname != "" {
-		conditions = append(conditions, fmt.Sprintf("hostname like '%%%s%%'", filters.Hostname))
+		conditions = append(conditions, fmt.Sprintf("instances.hostname like '%%%s%%'", filters.Hostname))
 		logger.Debugf("Added hostname filter: %s", filters.Hostname)
 	}
 
 	// 状态查询
 	if filters.Status != "" {
-		conditions = append(conditions, fmt.Sprintf("status = '%s'", filters.Status))
+		conditions = append(conditions, fmt.Sprintf("instances.status = '%s'", filters.Status))
 		logger.Debugf("Added status filter: %s", filters.Status)
 	}
 
 	// uuids查询
 	if len(filters.UUIDs) > 0 {
-		conditions = append(conditions, fmt.Sprintf("uuid IN ('%s')", strings.Join(filters.UUIDs, "','")))
+		conditions = append(conditions, fmt.Sprintf("instances.uuid IN ('%s')", strings.Join(filters.UUIDs, "','")))
 		logger.Debugf("Added UUIDs filter: %v", filters.UUIDs)
 	}
 
@@ -125,7 +126,7 @@ func (a *InstanceAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interf
 		if err != nil {
 			return
 		}
-		conditions = append(conditions, fmt.Sprintf("router_id = %d", router.ID))
+		conditions = append(conditions, fmt.Sprintf("instances.router_id = %d", router.ID))
 		logger.Debugf("Added VPC ID filter: %s -> router_id = %d", filters.VpcID, router.ID)
 	}
 
@@ -140,42 +141,39 @@ func (a *InstanceAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interf
 			}
 			routerIDs[i] = fmt.Sprintf("%d", router.ID)
 		}
-		conditions = append(conditions, fmt.Sprintf("router_id IN (%s)", strings.Join(routerIDs, ",")))
+		conditions = append(conditions, fmt.Sprintf("instances.router_id IN (%s)", strings.Join(routerIDs, ",")))
 		logger.Debugf("Added VPC IDs filter: %v", filters.VpcIDs)
 	}
 
 	// 安全组查询
 	if filters.SecurityGroupID != "" {
-		secgroup := &model.SecurityGroup{}
-		secgroup, err = a.secgroupService.GetSecgroupByUUID(c.Request.Context(), filters.SecurityGroupID)
-		if err != nil {
-			return
-		}
-		err = a.secgroupService.GetSecgroupInterfaces(c.Request.Context(), secgroup)
-		if err != nil {
-			return
-		}
-		if len(secgroup.Interfaces) == 0 {
-			conditions = append(conditions, "id = -1")
-		} else {
-			instanceIDs := make([]string, len(secgroup.Interfaces))
-			for i, iface := range secgroup.Interfaces {
-				instanceIDs[i] = strconv.FormatInt(iface.Instance, 10)
-			}
-			conditions = append(conditions, fmt.Sprintf("id IN (%s)", strings.Join(instanceIDs, ",")))
-		}
+		conditions = append(conditions, fmt.Sprintf("secgroup_ifaces.security_group_id = '%s'", filters.SecurityGroupID))
+		logger.Debugf("Added security group filter: %s", filters.SecurityGroupID)
 	}
 
 	// hyper查询
-	if filters.Hyper != "" {
+	if filters.Hyper != nil {
 		hyper := &model.Hyper{}
-		hyper, err = hyperAdmin.GetHyperByHostname(c.Request.Context(), filters.Hyper)
+		hyper, err = hyperAdmin.GetHyperByHostid(c.Request.Context(), *filters.Hyper)
 		if err != nil {
-			logger.Errorf("Failed to get hyper by hostname %s: %v", filters.Hyper, err)
+			logger.Errorf("Failed to get hyper by host id %d: %v", filters.Hyper, err)
 			return
 		}
-		conditions = append(conditions, fmt.Sprintf("hyper = %d", hyper.Hostid))
+		conditions = append(conditions, fmt.Sprintf("instances.hyper = %d", hyper.Hostid))
 		logger.Debugf("Added hyper filter: %s", filters.Hyper)
+	}
+	if filters.Keyword != "" {
+		keywordCondition := fmt.Sprintf(`(
+			instances.hostname LIKE '%%%s%%' OR
+			organizations.name LIKE '%%%s%%' OR
+			interfaces.mac_addr LIKE '%%%s%%' OR
+			addresses.address LIKE '%%%s%%' OR
+			addresses2.address LIKE '%%%s%%' OR
+			floating_ips.fip_address LIKE '%%%s%%' OR
+			floating_ips.int_address LIKE '%%%s%%'
+		)`, filters.Keyword, filters.Keyword, filters.Keyword, filters.Keyword, filters.Keyword, filters.Keyword, filters.Keyword)
+		conditions = append(conditions, keywordCondition)
+		logger.Debugf("Added keyword filter: %s", filters.Keyword)
 	}
 
 	if len(conditions) > 0 {
@@ -200,7 +198,7 @@ func (a *InstanceAdapter) List(c *gin.Context, req *ResourceQueryRequest) (inter
 
 	// 调用 service 层
 	logger.Debugf("Calling service layer with query: %s", query)
-	total, instances, err := a.service.List(ctx, int64(req.Offset), int64(req.Limit), req.Order, query)
+	total, instances, err := a.service.ListWithJoins(ctx, int64(req.Offset), int64(req.Limit), req.Order, query)
 	if err != nil {
 		logger.Errorf("Service layer query failed: %v", err)
 		return nil, err

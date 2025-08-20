@@ -284,3 +284,92 @@ func (a *InstanceAdmin) GetInstanceCountByHyper(ctx context.Context, hostid int3
 	query := fmt.Sprintf("hyper=%d", hostid)
 	return a.GetInstanceCount(ctx, query)
 }
+
+func (a *InstanceAdmin) ListWithJoins(ctx context.Context, offset, limit int64, order, query string) (total int64, instances []*model.Instance, err error) {
+	memberShip := GetMemberShip(ctx)
+	permit := memberShip.CheckPermission(model.Reader)
+	if !permit {
+		logger.Error("Not authorized for this operation")
+		err = fmt.Errorf("Not authorized")
+		return
+	}
+
+	db := DB()
+	if limit == 0 {
+		limit = 16
+	}
+
+	if order == "" {
+		order = "instances.created_at DESC"
+	}
+
+	logger.Debugf("The query in admin console is %s", query)
+
+	where := ""
+	if memberShip.OrgName == "admin" && memberShip.Role == model.Admin {
+		where = ""
+	} else {
+		where = fmt.Sprintf("instances.owner = %d", memberShip.OrgID)
+	}
+	instances = []*model.Instance{}
+
+	// 构建基础JOIN查询
+	joinDB := db.Model(&model.Instance{}).
+		Joins("LEFT JOIN organizations ON organizations.id = instances.owner").
+		Joins("LEFT JOIN interfaces ON interfaces.instance = instances.id").
+		Joins("LEFT JOIN addresses ON addresses.interface = interfaces.id AND addresses.deleted_at IS NULL").
+		Joins("LEFT JOIN addresses AS addresses2 ON addresses2.second_interface = interfaces.id AND addresses2.deleted_at IS NULL").
+		Joins("LEFT JOIN floating_ips ON floating_ips.instance_id = instances.id AND floating_ips.deleted_at IS NULL").
+		Joins("LEFT JOIN secgroup_ifaces ON secgroup_ifaces.interface_id = interfaces.id").
+		Joins("LEFT JOIN security_groups ON security_groups.id = secgroup_ifaces.security_group_id AND security_groups.deleted_at IS NULL")
+
+	// 计数
+	if err = joinDB.Model(&model.Instance{}).Where(where).Where(query).Select("COUNT(DISTINCT instances.id)").Count(&total).Error; err != nil {
+		logger.Errorf("Failed to count instances with joins: %v", err)
+		return
+	}
+
+	// 应用排序、分页和限制
+	joinDB = dbs.Sortby(joinDB.Offset(offset).Limit(limit), order)
+
+	// 查询实例
+	if err = joinDB.Preload("Volumes").Preload("Image").Preload("Zone").Preload("Flavor").Preload("Keys").Where(where).Where(query).Group("instances.id").Find(&instances).Error; err != nil {
+		logger.Errorf("Failed to query instances with joins: %v", err)
+		return
+	}
+
+	db = db.Offset(0).Limit(-1)
+	for _, instance := range instances {
+
+		// Preload Interfaces
+		if err = db.Preload("SiteSubnets").Preload("SiteSubnets.Group").Preload("SecurityGroups").Preload("Address").Preload("Address.Subnet").Preload("SecondAddresses", func(db *gorm.DB) *gorm.DB {
+			return db.Order("addresses.updated_at")
+		}).Preload("SecondAddresses.Subnet").Where("instance = ?", instance.ID).Find(&instance.Interfaces).Error; err != nil {
+			logger.Errorf("Failed to query interfaces %v", err)
+		}
+
+		// Preload FloatingIps
+		if err = db.Preload("Group").Preload("Subnet").Order("updated_at").Where("instance_id = ?", instance.ID).Find(&instance.FloatingIps).Error; err != nil {
+			logger.Errorf("Failed to query floating ip(s), %v", err)
+		}
+
+		// Preload Router
+		if instance.RouterID > 0 {
+			instance.Router = &model.Router{Model: model.Model{ID: instance.RouterID}}
+			if err = db.Take(instance.Router).Error; err != nil {
+				logger.Errorf("Failed to query router: %v", err)
+			}
+		}
+
+		// Preload OwnerInfo for admin users
+		permit := memberShip.CheckPermission(model.Admin)
+		if permit {
+			instance.OwnerInfo = &model.Organization{Model: model.Model{ID: instance.Owner}}
+			if err = db.Take(instance.OwnerInfo).Error; err != nil {
+				logger.Error("Failed to query owner info", err)
+			}
+		}
+	}
+
+	return
+}
