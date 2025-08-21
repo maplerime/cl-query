@@ -145,34 +145,26 @@ func (a *RouterAdmin) List(ctx context.Context, offset, limit int64, order, quer
 
 func (a *SubnetAdmin) AddressStatistics(ctx context.Context, subnet *model.Subnet) (total, allocated, reserved, idle int64, err error) {
 	db := DB()
-	where := fmt.Sprintf("subnet_id = %d and address != '%s'", subnet.ID, subnet.Gateway)
-	// total
-	err = db.Model(&model.Address{}).Where(where).Count(&total).Error
-	if err != nil {
+	query := db.Model(&model.Address{}).
+		Select(`
+			COUNT(*) as total,
+			SUM(CASE WHEN allocated = 't' THEN 1 ELSE 0 END) as allocated,
+			SUM(CASE WHEN reserved = 't' THEN 1 ELSE 0 END) as reserved,
+			SUM(CASE WHEN allocated = 'f' AND reserved = 'f' THEN 1 ELSE 0 END) as idle
+		`).
+		Where("subnet_id = ? AND address != ?", subnet.ID, subnet.Gateway)
+
+	var result struct {
+		Total     int64
+		Allocated int64
+		Reserved  int64
+		Idle      int64
+	}
+
+	if err = query.Scan(&result).Error; err != nil {
 		logger.Error("Failed to count addresses for subnet", err)
 		return
 	}
 
-	// allocated
-	err = db.Model(&model.Address{}).Where("allocated = ?", "t").Where(where).Count(&allocated).Error
-	if err != nil {
-		logger.Error("Failed to count allocated addresses for subnet", err)
-		return
-	}
-
-	// reserved
-	err = db.Model(&model.Address{}).Where("reserved = ?", "t").Where(where).Count(&reserved).Error
-	if err != nil {
-		logger.Error("Failed to count reserved addresses for subnet", err)
-		return
-	}
-
-	// idle
-	err = db.Model(&model.Address{}).Where("allocated = ?", "f").Where("reserved = ?", "f").Where(where).Count(&idle).Error
-	if err != nil {
-		logger.Error("Failed to count free addresses for subnet", err)
-		return
-	}
-
-	return
+	return result.Total, result.Allocated, result.Reserved, result.Idle, nil
 }

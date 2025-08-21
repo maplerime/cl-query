@@ -57,6 +57,7 @@ type IpGroupListResponse struct {
 type IpGroupFilters struct {
 	UUIDs []string `json:"uuids,omitempty" binding:"omitempty,dive,uuid"`
 	Name  string   `json:"name,omitempty"`
+	Type  string   `json:"type,omitempty" binding:"omitempty"`
 }
 
 type IpGroupAdapter struct {
@@ -93,6 +94,12 @@ func (a *IpGroupAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interfa
 	if len(filters.UUIDs) > 0 {
 		conditions = append(conditions, fmt.Sprintf("uuid IN ('%s')", strings.Join(filters.UUIDs, "','")))
 		logger.Debugf("Added UUIDs filter: %v", filters.UUIDs)
+	}
+
+	// 类型查询
+	if filters.Type != "" {
+		conditions = append(conditions, fmt.Sprintf("type = '%s'", filters.Type))
+		logger.Debugf("Added type filter: %s", filters.Type)
 	}
 
 	if len(conditions) > 0 {
