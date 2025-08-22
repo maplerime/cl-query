@@ -257,7 +257,7 @@ func (a *InstanceAdapter) getInstanceResponse(ctx context.Context, instance *mod
 		},
 		Hostname:    instance.Hostname,
 		LoginPort:   int(instance.LoginPort),
-		Status:      instance.Status,
+		Status:      string(instance.Status),
 		Reason:      instance.Reason,
 		Cpu:         instance.Cpu,
 		Memory:      instance.Memory,

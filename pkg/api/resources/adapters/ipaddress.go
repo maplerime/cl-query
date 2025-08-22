@@ -35,6 +35,7 @@ type AddressResponse struct {
 	Allocated       bool             `json:"allocated"`
 	Reserved        bool             `json:"reserved"`
 	SubnetID        int64            `json:"subnet_id"`
+	Remark          string           `json:"remark"`
 	TargetInterface *TargetInterface `json:"interface"`
 }
 
@@ -191,6 +192,7 @@ func (a *AddressAdapter) getAddressResponse(ctx context.Context, address *model.
 		Allocated: address.Allocated,
 		Reserved:  address.Reserved,
 		SubnetID:  address.SubnetID,
+		Remark:    address.Remark,
 	}
 	if address.Interface != 0 {
 		iface := &model.Interface{}

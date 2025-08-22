@@ -2,7 +2,7 @@ module github.com/maplerime/cl-query
 
 go 1.24.1
 
-replace web => github.com/maplerime/cloudland/web v0.0.0-20250807025802-d33342d3769d
+replace web => github.com/maplerime/cloudland/web v0.0.0-20250822061047-de17cc462d1b
 
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
