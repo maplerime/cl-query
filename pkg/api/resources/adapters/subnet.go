@@ -42,6 +42,7 @@ type SubnetFilters struct {
 	VpcID     string   `json:"vpc_id,omitempty"`      // VPC ID
 	GroupID   string   `json:"group_id,omitempty"`    // 组ID
 	Types     []string `json:"types,omitempty"`       // 子网类型
+	NoGroup   bool     `json:"no_group,omitempty"`    // 是否不属于任何组
 }
 
 type SubnetResponse struct {
@@ -126,6 +127,12 @@ func (a *SubnetAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interfac
 		}
 		conditions = append(conditions, fmt.Sprintf("subnets.router_id = %d", router.ID))
 		logger.Debugf("Added router_id filter: %d", router.ID)
+	}
+
+	// NoGroup
+	if filters.NoGroup {
+		conditions = append(conditions, "subnets.group_id = 0")
+		logger.Debug("Added no_group filter")
 	}
 
 	if len(filters.Types) > 0 {

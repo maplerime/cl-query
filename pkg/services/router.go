@@ -144,12 +144,12 @@ func (a *RouterAdmin) List(ctx context.Context, offset, limit int64, order, quer
 }
 
 func (a *SubnetAdmin) AddressStatistics(ctx context.Context, subnet *model.Subnet) (total, allocated, reserved, idle int64, err error) {
-	db := DB()
+	ctx, db := GetContextDB(ctx)
 	query := db.Model(&model.Address{}).
 		Select(`
 			COUNT(*) as total,
-			SUM(CASE WHEN allocated = 't' THEN 1 ELSE 0 END) as allocated,
-			SUM(CASE WHEN reserved = 't' THEN 1 ELSE 0 END) as reserved,
+			SUM(CASE WHEN allocated = 't' AND reserved = 'f' THEN 1 ELSE 0 END) as allocated,
+			SUM(CASE WHEN reserved = 't' AND reserved = 't' THEN 1 ELSE 0 END) as reserved,
 			SUM(CASE WHEN allocated = 'f' AND reserved = 'f' THEN 1 ELSE 0 END) as idle
 		`).
 		Where("subnet_id = ? AND address != ?", subnet.ID, subnet.Gateway)

@@ -161,15 +161,27 @@ func (a *AddressAdapter) List(c *gin.Context, req *ResourceQueryRequest) (interf
 }
 
 func (a *AddressAdapter) Get(c *gin.Context, id string) (resp interface{}, err error) {
+	logger.Debugf("Starting Address get query with ID: %s", id)
+
+	ctx := c.Request.Context()
+	address, err := a.subnetService.GetAddressByUUID(ctx, id)
+	if err != nil {
+		return
+	}
+
+	resp, err = a.getAddressResponse(ctx, address)
+	if err != nil {
+		return
+	}
+
+	logger.Debugf("Get address successfully: %+v", resp)
 	return
 }
 
 func (a *AddressAdapter) getAddressResponse(ctx context.Context, address *model.Address) (addressResp *AddressResponse, err error) {
-	owner := orgAdmin.GetOrgName(ctx, address.Owner)
 	addressResp = &AddressResponse{
 		ResourceReference: &ResourceReference{
 			ID:        address.UUID,
-			Owner:     owner,
 			CreatedAt: address.CreatedAt.Format(TimeStringForMat),
 			UpdatedAt: address.UpdatedAt.Format(TimeStringForMat),
 		},
@@ -182,7 +194,7 @@ func (a *AddressAdapter) getAddressResponse(ctx context.Context, address *model.
 	}
 	if address.Interface != 0 {
 		iface := &model.Interface{}
-		iface, err = a.interfaceService.Get(ctx, address.Interface)
+		iface, err = a.interfaceService.Fetch(ctx, address.Interface)
 		if err != nil {
 			logger.Errorf("Failed to get interface for address %s, err: %v", address.Address, err)
 			return
@@ -197,18 +209,19 @@ func (a *AddressAdapter) getAddressResponse(ctx context.Context, address *model.
 		if address.Subnet.Type == "internal" {
 			if iface.Instance > 0 {
 				instance := &model.Instance{}
-				instance, err = a.instanceService.Get(ctx, iface.Instance)
+				instance, err = a.instanceService.Fetch(ctx, iface.Instance)
 				if err != nil {
 					logger.Errorf("Failed to get instance for interface %d, err: %v", iface.Instance, err)
 					return
 				}
-				owner = orgAdmin.GetOrgName(ctx, instance.Owner)
 				addressResp.TargetInterface.FromInstance = &InstanceInfo{
 					ResourceReference: &ResourceReference{
-						ID:    instance.UUID,
-						Owner: owner,
+						ID: instance.UUID,
 					},
 					Hostname: instance.Hostname,
+				}
+				if instance.OwnerInfo != nil {
+					addressResp.TargetInterface.FromInstance.ResourceReference.Owner = instance.OwnerInfo.Name
 				}
 			}
 		} else {
@@ -219,13 +232,14 @@ func (a *AddressAdapter) getAddressResponse(ctx context.Context, address *model.
 				return addressResp, nil
 			}
 			if err == nil && floatingIp.Instance != nil {
-				owner = orgAdmin.GetOrgName(ctx, floatingIp.Instance.Owner)
 				addressResp.TargetInterface.FromInstance = &InstanceInfo{
 					ResourceReference: &ResourceReference{
-						ID:    floatingIp.Instance.UUID,
-						Owner: owner,
+						ID: floatingIp.Instance.UUID,
 					},
 					Hostname: floatingIp.Instance.Hostname,
+				}
+				if floatingIp.OwnerInfo != nil {
+					addressResp.TargetInterface.FromInstance.ResourceReference.Owner = floatingIp.OwnerInfo.Name
 				}
 			}
 		}

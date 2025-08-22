@@ -52,6 +52,7 @@ type FloatingIpFilters struct {
 	InstanceID string   `json:"instance_id,omitempty"`
 	UUIDs      []string `json:"uuids,omitempty"`
 	IsIdle     *bool    `json:"is_idle,omitempty"` // 是否查询空闲的/非空闲的
+	Type       string   `json:"type,omitempty"`
 }
 
 type FloatingIpResponse struct {
@@ -126,6 +127,11 @@ func (a *FloatingIPAdapter) MakeQuery(c *gin.Context, filtersMap map[string]inte
 			// 查找已经挂载到实例的
 			conditions = append(conditions, "instance_id != 0")
 		}
+	}
+
+	if filters.Type != "" {
+		conditions = append(conditions, fmt.Sprintf("type = '%s'", filters.Type))
+		logger.Debugf("Added type filter: %s", filters.Type)
 	}
 
 	if len(conditions) > 0 {

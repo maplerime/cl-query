@@ -193,18 +193,12 @@ func (a *FloatingIpAdmin) GetFloatingIpByAddress(ctx context.Context, ipAddress 
 			logger.Error("DB failed to query instance ", err)
 			return
 		}
-		instance := floatingIp.Instance
-		err = db.Preload("Address").Preload("Address.Subnet").Where("instance = ? and primary_if = true", instance.ID).Find(&instance.Interfaces).Error
-		if err != nil {
-			logger.Error("Failed to query interfaces %v", err)
-			return
-		}
 	}
-	if floatingIp.RouterID > 0 {
-		floatingIp.Router = &model.Router{Model: model.Model{ID: floatingIp.RouterID}}
-		err = db.Take(floatingIp.Router).Error
-		if err != nil {
-			logger.Error("DB failed to query instance ", err)
+	permit := memberShip.CheckPermission(model.Admin)
+	if permit {
+		floatingIp.OwnerInfo = &model.Organization{Model: model.Model{ID: floatingIp.Owner}}
+		if err = db.Take(floatingIp.OwnerInfo).Error; err != nil {
+			logger.Error("Failed to query owner info", err)
 			return
 		}
 	}

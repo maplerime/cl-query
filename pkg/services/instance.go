@@ -131,6 +131,39 @@ func (a *InstanceAdmin) Get(ctx context.Context, id int64) (instance *model.Inst
 	return
 }
 
+func (a *InstanceAdmin) Fetch(ctx context.Context, id int64) (instance *model.Instance, err error) {
+	if id <= 0 {
+		err = fmt.Errorf("Invalid instance ID: %d", id)
+		logger.Error(err)
+		return
+	}
+	ctx, db := GetContextDB(ctx)
+	memberShip := GetMemberShip(ctx)
+	where := memberShip.GetWhere()
+	instance = &model.Instance{Model: model.Model{ID: id}}
+	if err = db.Where(where).Take(instance).Error; err != nil {
+		logger.Errorf("Failed to query instance, %v", err)
+		return
+	}
+
+	permit := memberShip.ValidateOwner(model.Reader, instance.Owner)
+	if !permit {
+		logger.Error("Not authorized to read the instance")
+		err = fmt.Errorf("Not authorized")
+		return
+	}
+	permit = memberShip.CheckPermission(model.Admin)
+	if permit {
+		instance.OwnerInfo = &model.Organization{Model: model.Model{ID: instance.Owner}}
+		if err = db.Take(instance.OwnerInfo).Error; err != nil {
+			logger.Error("Failed to query owner info", err)
+			return
+		}
+	}
+
+	return
+}
+
 func (a *InstanceAdmin) GetInstanceByUUID(ctx context.Context, uuID string) (instance *model.Instance, err error) {
 	ctx, db := GetContextDB(ctx)
 	memberShip := GetMemberShip(ctx)

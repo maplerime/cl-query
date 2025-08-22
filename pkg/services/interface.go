@@ -58,6 +58,22 @@ func (a *InterfaceAdmin) Get(ctx context.Context, id int64) (iface *model.Interf
 	return
 }
 
+func (a *InterfaceAdmin) Fetch(ctx context.Context, id int64) (iface *model.Interface, err error) {
+	if id <= 0 {
+		err = fmt.Errorf("Invalid interface ID: %d", id)
+		logger.Debug(err)
+		return
+	}
+	ctx, db := GetContextDB(ctx)
+	iface = &model.Interface{Model: model.Model{ID: id}}
+	err = db.Take(iface).Error
+	if err != nil {
+		logger.Debug("DB failed to query interface, %v", err)
+		return
+	}
+	return
+}
+
 func (a *InterfaceAdmin) GetInterfaceByUUID(ctx context.Context, uuID string) (iface *model.Interface, err error) {
 	memberShip := GetMemberShip(ctx)
 	where := memberShip.GetWhere()
