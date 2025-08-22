@@ -44,6 +44,7 @@ type InstanceResponse struct {
 	VPC         *ResourceReference    `json:"vpc,omitempty"`
 	Hypervisor  *BaseReference        `json:"hypervisor,omitempty"`
 	Reason      string                `json:"reason"`
+	Username    string                `json:"username,omitempty"`
 }
 
 type InstanceListResponse struct {
@@ -261,6 +262,7 @@ func (a *InstanceAdapter) getInstanceResponse(ctx context.Context, instance *mod
 		Cpu:         instance.Cpu,
 		Memory:      instance.Memory,
 		Disk:        instance.Disk,
+		Username:    instance.Image.UserName,
 		PasswdLogin: instance.PasswdLogin,
 	}
 	if instance.Image != nil {
