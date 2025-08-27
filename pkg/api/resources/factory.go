@@ -65,6 +65,9 @@ func NewAdapterFactory() *AdapterFactory {
 	factory.Register("ipaddress", func() adapters.ResourceAdapter {
 		return adapters.NewAddressAdapter()
 	})
+	factory.Register("dictionary", func() adapters.ResourceAdapter {
+		return adapters.NewDictionaryAdapter()
+	})
 	return factory
 }
 
