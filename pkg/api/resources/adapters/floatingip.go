@@ -105,7 +105,7 @@ func (a *FloatingIPAdapter) MakeQuery(c *gin.Context, filtersMap map[string]inte
 
 	if filters.Name != "" {
 		// fip_address | int_address | name
-		conditions = append(conditions, fmt.Sprintf("fip_address like '%%%s%%' OR int_address like '%%%s%%' OR name like '%%%s%%'", filters.Name, filters.Name, filters.Name))
+		conditions = append(conditions, fmt.Sprintf("(fip_address like '%%%s%%' OR int_address like '%%%s%%' OR name like '%%%s%%')", filters.Name, filters.Name, filters.Name))
 		logger.Debugf("Added name filter: %s", filters.Name)
 	}
 
