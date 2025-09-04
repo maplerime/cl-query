@@ -25,18 +25,18 @@ import (
 )
 
 type ZoneResponse struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Remark      string `json:"remark"`
-	Default     bool   `json:"default"`
-	CpuTotal    int64  `json:"cpu_total"`
-	Cpu         int64  `json:"cpu"`
-	MemoryTotal int64  `json:"memory_total"`
-	Memory      int64  `json:"memory"`
-	DiskTotal   int64  `json:"disk_total"`
-	Disk        int64  `json:"disk"`
-	HyperCount  int64  `json:"hyper_count"`
-	VMCount     int64  `json:"vm_count"`
+	ID            int64  `json:"id"`
+	Name          string `json:"name"`
+	Remark        string `json:"remark"`
+	Default       bool   `json:"default"`
+	CpuTotal      int64  `json:"cpu_total"`
+	Cpu           int64  `json:"cpu"`
+	MemoryTotal   int64  `json:"memory_total"`
+	Memory        int64  `json:"memory"`
+	DiskTotal     int64  `json:"disk_total"`
+	Disk          int64  `json:"disk"`
+	HyperCount    int64  `json:"hyper_count"`
+	InstanceCount int64  `json:"instance_count"`
 }
 
 type ZoneListResponse struct {
@@ -205,9 +205,8 @@ func (a *ZoneAdapter) aggregateHyperResources(ctx context.Context, zoneID int64,
 	vmCount, err := a.instanceService.GetInstanceCountByZone(ctx, zoneID)
 	if err != nil {
 		logger.Errorf("Failed to count VMs for zone %d: %v", zoneID, err)
-		resp.VMCount = 0
 	} else {
-		resp.VMCount = vmCount
+		resp.InstanceCount = vmCount
 	}
 
 	return nil

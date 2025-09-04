@@ -26,28 +26,28 @@ import (
 )
 
 type HyperResponse struct {
-	Hostid       int32   `json:"hostid"`
-	Hostname     string  `json:"hostname"`
-	Status       int32   `json:"status"`
-	StatusName   string  `json:"status_name"`
-	Parentid     int32   `json:"parentid"`
-	Children     int32   `json:"children"`
-	HostIP       string  `json:"host_ip"`
-	RouteIP      string  `json:"route_ip"`
-	VirtType     string  `json:"virt_type"`
-	CpuOverRate  float32 `json:"cpu_over_rate"`
-	MemOverRate  float32 `json:"mem_over_rate"`
-	DiskOverRate float32 `json:"disk_over_rate"`
-	ZoneID       int64   `json:"zone_id"`
-	ZoneName     string  `json:"zone_name"`
-	Remark       string  `json:"remark"`
-	Cpu          int64   `json:"cpu"`
-	Memory       int64   `json:"memory"`
-	Disk         int64   `json:"disk"`
-	CpuTotal     int64   `json:"cpu_total"`
-	MemoryTotal  int64   `json:"memory_total"`
-	DiskTotal    int64   `json:"disk_total"`
-	VMCount      int64   `json:"vm_count"`
+	Hostid        int32   `json:"hostid"`
+	Hostname      string  `json:"hostname"`
+	Status        int32   `json:"status"`
+	StatusName    string  `json:"status_name"`
+	Parentid      int32   `json:"parentid"`
+	Children      int32   `json:"children"`
+	HostIP        string  `json:"host_ip"`
+	RouteIP       string  `json:"route_ip"`
+	VirtType      string  `json:"virt_type"`
+	CpuOverRate   float32 `json:"cpu_over_rate"`
+	MemOverRate   float32 `json:"mem_over_rate"`
+	DiskOverRate  float32 `json:"disk_over_rate"`
+	ZoneID        int64   `json:"zone_id"`
+	ZoneName      string  `json:"zone_name"`
+	Remark        string  `json:"remark"`
+	Cpu           int64   `json:"cpu"`
+	Memory        int64   `json:"memory"`
+	Disk          int64   `json:"disk"`
+	CpuTotal      int64   `json:"cpu_total"`
+	MemoryTotal   int64   `json:"memory_total"`
+	DiskTotal     int64   `json:"disk_total"`
+	InstanceCount int64   `json:"instance_count"`
 }
 
 type HyperListResponse struct {
@@ -217,7 +217,7 @@ func (a *HyperAdapter) getHyperResponse(ctx context.Context, hyper *model.Hyper)
 	if err != nil {
 		logger.Errorf("Failed to get instance count for hyper %d: %v", hyper.Hostid, err)
 	} else {
-		resp.VMCount = count
+		resp.InstanceCount = count
 	}
 
 	return resp
