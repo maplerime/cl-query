@@ -68,6 +68,9 @@ func NewAdapterFactory() *AdapterFactory {
 	factory.Register("dictionary", func() adapters.ResourceAdapter {
 		return adapters.NewDictionaryAdapter()
 	})
+	factory.Register("zone", func() adapters.ResourceAdapter {
+		return adapters.NewZoneAdapter()
+	})
 	return factory
 }
 

@@ -47,7 +47,7 @@ type HyperResponse struct {
 	CpuTotal     int64   `json:"cpu_total"`
 	MemoryTotal  int64   `json:"memory_total"`
 	DiskTotal    int64   `json:"disk_total"`
-	VMTotal      int64   `json:"vm_total"`
+	VMCount      int64   `json:"vm_count"`
 }
 
 type HyperListResponse struct {
@@ -59,12 +59,14 @@ type HyperListResponse struct {
 type HyperFilters struct {
 	Hostname string `json:"hostname,omitempty"`
 	Status   *int   `json:"status,omitempty" binding:"omitempty"`
+	ZoneName string `json:"zone_name,omitempty"`
 }
 
 type HyperAdapter struct {
 	BaseAdapter
 	service         *services.HyperAdmin
 	instanceService *services.InstanceAdmin
+	zoneService     *services.ZoneAdmin
 }
 
 func NewHyperAdapter() *HyperAdapter {
@@ -72,6 +74,7 @@ func NewHyperAdapter() *HyperAdapter {
 	return &HyperAdapter{
 		service:         &services.HyperAdmin{},
 		instanceService: &services.InstanceAdmin{},
+		zoneService:     &services.ZoneAdmin{},
 	}
 }
 
@@ -95,6 +98,17 @@ func (a *HyperAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interface
 	if filters.Status != nil {
 		conditions = append(conditions, fmt.Sprintf("status = %d", *filters.Status))
 		logger.Debugf("Added status filter: %d", *filters.Status)
+	}
+
+	// zone查询
+	if filters.ZoneName != "" {
+		zone := &model.Zone{}
+		zone, err = a.zoneService.GetZoneByName(c.Request.Context(), filters.ZoneName)
+		if err != nil {
+			return
+		}
+		conditions = append(conditions, fmt.Sprintf("zone_id = %d", zone.ID))
+		logger.Debugf("Added zone_name filter: %s", filters.ZoneName)
 	}
 
 	if len(conditions) > 0 {
@@ -198,12 +212,12 @@ func (a *HyperAdapter) getHyperResponse(ctx context.Context, hyper *model.Hyper)
 		resp.DiskTotal = hyper.Resource.DiskTotal / (1024 * 1024 * 1024) // Convert B to GB
 	}
 
-	// VM Total
+	// VM Count
 	count, err := a.instanceService.GetInstanceCountByHyper(ctx, hyper.Hostid)
 	if err != nil {
 		logger.Errorf("Failed to get instance count for hyper %d: %v", hyper.Hostid, err)
 	} else {
-		resp.VMTotal = count
+		resp.VMCount = count
 	}
 
 	return resp

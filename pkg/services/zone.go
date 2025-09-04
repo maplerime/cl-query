@@ -9,7 +9,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"web/src/model"
 
 	. "github.com/maplerime/cl-query/pkg/common"
@@ -25,10 +24,7 @@ func (a *ZoneAdmin) List(ctx context.Context, offset, limit int64, order, query 
 	}
 
 	if order == "" {
-		order = "hostid"
-	}
-	if query != "" {
-		query = fmt.Sprintf("name like '%%%s%%'", query)
+		order = "name"
 	}
 
 	zones = []*model.Zone{}
@@ -36,7 +32,7 @@ func (a *ZoneAdmin) List(ctx context.Context, offset, limit int64, order, query 
 		return
 	}
 	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
-	if err = db.Preload("Zone").Where("hostid >= 0").Where(query).Find(&zones).Error; err != nil {
+	if err = db.Model(&model.Zone{}).Where(query).Find(&zones).Error; err != nil {
 		return
 	}
 	db = db.Offset(0).Limit(-1)

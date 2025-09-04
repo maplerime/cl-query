@@ -313,8 +313,13 @@ func (a *InstanceAdmin) GetInstanceCount(ctx context.Context, query string) (cou
 	return
 }
 
-func (a *InstanceAdmin) GetInstanceCountByHyper(ctx context.Context, hostid int32) (count int64, err error) {
-	query := fmt.Sprintf("hyper=%d", hostid)
+func (a *InstanceAdmin) GetInstanceCountByHyper(ctx context.Context, hostID int32) (count int64, err error) {
+	query := fmt.Sprintf("hyper=%d", hostID)
+	return a.GetInstanceCount(ctx, query)
+}
+
+func (a *InstanceAdmin) GetInstanceCountByZone(ctx context.Context, zoneID int64) (count int64, err error) {
+	query := fmt.Sprintf("zone_id=%d", zoneID)
 	return a.GetInstanceCount(ctx, query)
 }
 
