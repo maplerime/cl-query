@@ -16,6 +16,8 @@ package adapters
 import (
 	"context"
 	"fmt"
+	. "github.com/maplerime/cl-query/pkg/common"
+	"strconv"
 	"strings"
 	"web/src/model"
 
@@ -25,8 +27,7 @@ import (
 )
 
 type ZoneResponse struct {
-	ID            int64  `json:"id"`
-	Name          string `json:"name"`
+	*ResourceReference
 	Remark        string `json:"remark"`
 	Default       bool   `json:"default"`
 	CpuTotal      int64  `json:"cpu_total"`
@@ -152,8 +153,12 @@ func (a *ZoneAdapter) Get(c *gin.Context, zoneName string) (resp interface{}, er
 
 func (a *ZoneAdapter) getZoneResponse(ctx context.Context, zone *model.Zone) (*ZoneResponse, error) {
 	resp := &ZoneResponse{
-		ID:      zone.ID,
-		Name:    zone.Name,
+		ResourceReference: &ResourceReference{
+			ID:        strconv.FormatInt(zone.ID, 10),
+			Name:      zone.Name,
+			CreatedAt: zone.CreatedAt.Format(TimeStringForMat),
+			UpdatedAt: zone.UpdatedAt.Format(TimeStringForMat),
+		},
 		Default: zone.Default,
 	}
 
