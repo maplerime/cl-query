@@ -33,6 +33,7 @@ type SiteSubnetInfo struct {
 	End     string         `json:"end"`
 	Group   *BaseReference `json:"group,omitempty"`
 	Vlan    int64          `json:"vlan"`
+	IPCount int64          `json:"ip_count"`
 }
 
 type SubnetFilters struct {

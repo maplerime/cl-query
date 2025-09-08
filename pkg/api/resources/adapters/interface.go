@@ -57,6 +57,7 @@ type InterfaceAdapter struct {
 	BaseAdapter
 	service         *services.InterfaceAdmin
 	instanceService *services.InstanceAdmin
+	subnetService   *services.SubnetAdmin
 }
 
 func NewInterfaceAdapter() *InterfaceAdapter {
@@ -64,6 +65,7 @@ func NewInterfaceAdapter() *InterfaceAdapter {
 	return &InterfaceAdapter{
 		service:         &services.InterfaceAdmin{},
 		instanceService: &services.InstanceAdmin{},
+		subnetService:   &services.SubnetAdmin{},
 	}
 }
 
@@ -215,6 +217,12 @@ func (a *InterfaceAdapter) getInterfaceResponse(ctx context.Context, instance *m
 					}
 				}
 				siteInfo.Vlan = site.Vlan
+				ipCount := int64(0)
+				ipCount, _, _, _, err = a.subnetService.AddressStatistics(ctx, site)
+				if err != nil {
+					logger.Errorf("Failed to count addresses for subnet, err=%v", err)
+				}
+				siteInfo.IPCount = ipCount
 				interfaceResp.SiteSubnets = append(interfaceResp.SiteSubnets, siteInfo)
 			}
 		}
