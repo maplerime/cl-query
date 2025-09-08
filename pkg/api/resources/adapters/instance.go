@@ -172,8 +172,9 @@ func (a *InstanceAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interf
 			addresses.address LIKE '%%%s%%' OR
 			addresses2.address LIKE '%%%s%%' OR
 			floating_ips.fip_address LIKE '%%%s%%' OR
-			floating_ips.int_address LIKE '%%%s%%'
-		)`, filters.Keyword, filters.Keyword, filters.Keyword, filters.Keyword, filters.Keyword, filters.Keyword, filters.Keyword)
+			floating_ips.int_address LIKE '%%%s%%' OR
+			site_addresses.address LIKE '%%%s%%'
+		)`, filters.Keyword, filters.Keyword, filters.Keyword, filters.Keyword, filters.Keyword, filters.Keyword, filters.Keyword, filters.Keyword)
 		conditions = append(conditions, keywordCondition)
 		logger.Debugf("Added keyword filter: %s", filters.Keyword)
 	}
