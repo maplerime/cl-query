@@ -223,6 +223,22 @@ func (a *FloatingIpAdmin) GetFloatingIpByAddress(ctx context.Context, ipAddress 
 			logger.Error("DB failed to query instance ", err)
 			return
 		}
+	} else if floatingIp.Type == "site" && floatingIp.SubnetID > 0 {
+		subnet := &model.Subnet{Model: model.Model{ID: floatingIp.SubnetID}}
+		err = db.Take(&subnet).Error
+		if err == nil && subnet.Interface > 0 {
+			iface := &model.Interface{Model: model.Model{ID: subnet.Interface}}
+			err = db.Take(iface).Error
+			if err == nil || iface.Instance > 0 {
+				floatingIp.Instance = &model.Instance{Model: model.Model{ID: iface.Instance}}
+				err = db.Take(floatingIp.Instance).Error
+				if err != nil {
+					logger.Error("Failed to query instance for site floating ip ", err)
+					return
+				}
+				floatingIp.Interface = iface
+			}
+		}
 	}
 	permit := memberShip.CheckPermission(model.Admin)
 	if permit {

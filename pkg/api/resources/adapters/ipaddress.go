@@ -201,13 +201,7 @@ func (a *AddressAdapter) getAddressResponse(ctx context.Context, address *model.
 			logger.Errorf("Failed to get interface for address %s, err: %v", address.Address, err)
 			return
 		}
-		addressResp.TargetInterface = &TargetInterface{
-			ResourceReference: &ResourceReference{
-				ID:   iface.UUID,
-				Name: iface.Name,
-			},
-			MacAddr: iface.MacAddr,
-		}
+
 		if address.Subnet.Type == "internal" {
 			if iface.Instance > 0 {
 				instance := &model.Instance{}
@@ -226,12 +220,26 @@ func (a *AddressAdapter) getAddressResponse(ctx context.Context, address *model.
 					addressResp.TargetInterface.FromInstance.ResourceReference.Owner = instance.OwnerInfo.Name
 				}
 			}
+			addressResp.TargetInterface = &TargetInterface{
+				ResourceReference: &ResourceReference{
+					ID:   iface.UUID,
+					Name: iface.Name,
+				},
+				MacAddr: iface.MacAddr,
+			}
 		} else {
 			floatingIp := &model.FloatingIp{}
 			floatingIp, err = a.floatingIpService.GetFloatingIpByAddress(ctx, address.Address)
 			if err != nil {
 				logger.Errorf("Failed to get floating IP for interface %d, err: %v", iface.ID, err)
 				return addressResp, nil
+			}
+			addressResp.TargetInterface = &TargetInterface{
+				ResourceReference: &ResourceReference{
+					ID:   floatingIp.Interface.UUID,
+					Name: floatingIp.Interface.Name,
+				},
+				MacAddr: floatingIp.Interface.MacAddr,
 			}
 			if err == nil && floatingIp.Instance != nil {
 				addressResp.TargetInterface.FromInstance = &InstanceInfo{
