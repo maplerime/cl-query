@@ -125,6 +125,17 @@ func (a *FloatingIpAdmin) List(ctx context.Context, offset, limit int64, order, 
 	}
 	db = db.Offset(0).Limit(-1)
 	for _, fip := range floatingIps {
+
+		if fip.RouterID > 0 {
+			fip.Router = &model.Router{Model: model.Model{ID: fip.RouterID}}
+			err = db.Take(fip.Router).Error
+			if err != nil {
+				logger.Error("DB failed to query router ", err)
+				err = nil
+				continue
+			}
+		}
+
 		if fip.InstanceID > 0 {
 			if fip.Instance != nil && fip.Instance.ID > 0 {
 				instance := fip.Instance
@@ -150,17 +161,36 @@ func (a *FloatingIpAdmin) List(ctx context.Context, offset, limit int64, order, 
 					continue
 				}
 			}
-		}
-
-		if fip.RouterID > 0 {
-			fip.Router = &model.Router{Model: model.Model{ID: fip.RouterID}}
-			err = db.Take(fip.Router).Error
+		} else if fip.Type == "site" && fip.SubnetID > 0 {
+			subnet := &model.Subnet{Model: model.Model{ID: fip.SubnetID}}
+			err = db.Take(&subnet).Error
+			if err != nil || subnet.Interface == 0 {
+				logger.Error("Failed to query subnet for site floating ip ", err)
+				err = nil
+				continue
+			}
+			iface := &model.Interface{Model: model.Model{ID: subnet.Interface}}
+			err = db.Take(iface).Error
+			if err != nil || iface.Instance == 0 {
+				err = nil
+				continue
+			}
+			fip.Instance = &model.Instance{Model: model.Model{ID: iface.Instance}}
+			err = db.Take(fip.Instance).Error
 			if err != nil {
-				logger.Error("DB failed to query router ", err)
+				logger.Error("Failed to query instance for site floating ip ", err)
+				err = nil
+				continue
+			}
+			instance := fip.Instance
+			err = db.Preload("Address").Where("instance = ? and primary_if = true", instance.ID).Find(&instance.Interfaces).Error
+			if err != nil {
+				logger.Error("Failed to query interfaces ", err)
 				err = nil
 				continue
 			}
 		}
+
 	}
 	permit := memberShip.CheckPermission(model.Admin)
 	if permit {
