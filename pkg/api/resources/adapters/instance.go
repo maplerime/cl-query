@@ -40,7 +40,8 @@ type InstanceResponse struct {
 	Image       *ResourceReference    `json:"image"`
 	Keys        []*ResourceReference  `json:"keys"`
 	PasswdLogin bool                  `json:"passwd_login"`
-	Zone        *BaseReference        `json:"zone"`
+	ZoneName    string                `json:"zone_name"`
+	ZoneRemark  string                `json:"zone_remark"`
 	VPC         *ResourceReference    `json:"vpc,omitempty"`
 	Hypervisor  *BaseReference        `json:"hypervisor,omitempty"`
 	Reason      string                `json:"reason"`
@@ -278,10 +279,8 @@ func (a *InstanceAdapter) getInstanceResponse(ctx context.Context, instance *mod
 		instanceResp.Disk = instance.Flavor.Disk
 	}
 	if instance.Zone != nil {
-		instanceResp.Zone = &BaseReference{
-			ID:   strconv.Itoa(int(instance.Zone.ID)),
-			Name: instance.Zone.Name,
-		}
+		instanceResp.ZoneName = instance.Zone.Name
+		instanceResp.ZoneRemark = instance.Zone.Remark
 	}
 	keys := make([]*ResourceReference, len(instance.Keys))
 	for i, key := range instance.Keys {

@@ -225,6 +225,8 @@ func (a *SubnetAdapter) getSubnetResponse(ctx context.Context, subnet *model.Sub
 		Network:    subnet.Network,
 		Netmask:    subnet.Netmask,
 		Gateway:    subnet.Gateway,
+		Start:      subnet.Start,
+		End:        subnet.End,
 		NameServer: subnet.NameServer,
 		Type:       subnet.Type,
 		Vlan:       int(subnet.Vlan),
