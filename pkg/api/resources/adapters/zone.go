@@ -160,6 +160,7 @@ func (a *ZoneAdapter) getZoneResponse(ctx context.Context, zone *model.Zone) (*Z
 			UpdatedAt: zone.UpdatedAt.Format(TimeStringForMat),
 		},
 		Default: zone.Default,
+		Remark:  zone.Remark,
 	}
 
 	// 获取该zone下的所有hyper并汇总资源
