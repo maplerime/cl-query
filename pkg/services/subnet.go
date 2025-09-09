@@ -262,5 +262,15 @@ func (a *SubnetAdmin) GetAddressByUUID(ctx context.Context, uuID string) (addres
 		return
 	}
 	return
+}
 
+func (a *SubnetAdmin) GetAddressesBySubnet(ctx context.Context, subnetID int64) (addresses []*model.Address, err error) {
+	ctx, db := GetContextDB(ctx)
+	addresses = []*model.Address{}
+	err = db.Where("subnet_id = ?", subnetID).Order("address::inet").Find(&addresses).Error
+	if err != nil {
+		logger.Error("Failed to query addresses by subnet_id, %v", err)
+		return
+	}
+	return
 }

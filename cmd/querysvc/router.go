@@ -74,10 +74,15 @@ func NewRouter(ctx *context.Context) *gin.Engine {
 	r.Use(middleware.RateLimiter(limit, rateLimit))
 	r.Use(middleware.ContentType())
 	r.GET("/api/v1/query", api.GetMetadata)
+	
+	// 创建IP树API实例
+	ipTreeAPI := api.NewIPTreeAPI()
+	
 	v1 := r.Group("/api/v1/query").Use(middleware.Authorize())
 	{
 		v1.POST("/resources", resources.QueryResources)
 		v1.GET("/resources/:resource_type/:id", resources.GetResource)
+		v1.GET("/instances/:id/subnet-ip-tree", ipTreeAPI.GetInstanceIPTree)
 	}
 
 	docs.SwaggerInfo.BasePath = "/api/v1"
