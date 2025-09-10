@@ -91,14 +91,12 @@ func (api *IPTreeAPI) buildIPTree(ctx context.Context, instance *model.Instance)
 	response = &IPTreeResponse{}
 
 	// 1. 处理VPC信息
-	isVPC := false
 	if instance.RouterID > 0 && instance.Router != nil {
 		router := instance.Router
 		response.VPC = &ResourceReference{
 			ID:   router.UUID,
 			Name: router.Name,
 		}
-		isVPC = true
 	}
 
 	// 用于避免重复添加的映射，同时保存子网信息
@@ -108,8 +106,9 @@ func (api *IPTreeAPI) buildIPTree(ctx context.Context, instance *model.Instance)
 	})
 
 	for _, iface := range instance.Interfaces {
+
 		// 内网IP
-		if isVPC && iface.Address != nil {
+		if iface.Address.Subnet.Type == "internal" {
 			response.Private = append(response.Private, strings.Split(iface.Address.Address, "/")[0])
 		}
 
