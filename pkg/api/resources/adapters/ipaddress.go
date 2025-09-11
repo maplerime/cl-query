@@ -88,7 +88,7 @@ func (a *AddressAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interfa
 	if err != nil {
 		return
 	}
-	conditions = append(conditions, fmt.Sprintf("subnet_id = %d", subnet.ID))
+	conditions = append(conditions, fmt.Sprintf("subnet_id = %d AND address != '%s'", subnet.ID, subnet.Gateway))
 	logger.Debugf("Added subnet_id filter: %s -> subnet_id = %d", filters.SubnetID, subnet.ID)
 
 	// IP地址模糊匹配
