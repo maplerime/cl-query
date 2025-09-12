@@ -207,6 +207,18 @@ func (a *InstanceAdapter) List(c *gin.Context, req *ResourceQueryRequest) (inter
 
 	logger.Infof("Successfully retrieved %d Instances (total: %d)", len(instances), total)
 
+	// 批量查询所有需要的hyper信息
+	hyperIds := make([]int32, 0, len(instances))
+	for _, instance := range instances {
+		hyperIds = append(hyperIds, instance.Hyper)
+	}
+	hypersMap, err := a.hyperService.GetHypersByHostids(ctx, hyperIds)
+	if err != nil {
+		logger.Errorf("Failed to batch query hypers: %v", err)
+		// 如果批量查询失败，设置为nil，会fallback到单次查询
+		hypersMap = nil
+	}
+
 	// 返回响应
 	instanceListResp := &InstanceListResponse{
 		Total:  int(total),
@@ -215,7 +227,7 @@ func (a *InstanceAdapter) List(c *gin.Context, req *ResourceQueryRequest) (inter
 	}
 	instanceList := make([]*InstanceResponse, instanceListResp.Limit)
 	for i, instance := range instances {
-		instanceList[i], err = a.getInstanceResponse(ctx, instance)
+		instanceList[i], err = a.getInstanceResponse(ctx, instance, hypersMap)
 		if err != nil {
 			logger.Errorf("Failed to create instance response, %+v", err)
 			ErrorResponse(c, http.StatusInternalServerError, "Internal error", err)
@@ -245,7 +257,7 @@ func (a *InstanceAdapter) Get(c *gin.Context, id string) (resp interface{}, err 
 	return
 }
 
-func (a *InstanceAdapter) getInstanceResponse(ctx context.Context, instance *model.Instance) (instanceResp *InstanceResponse, err error) {
+func (a *InstanceAdapter) getInstanceResponse(ctx context.Context, instance *model.Instance, hypersMap ...map[int32]*model.Hyper) (instanceResp *InstanceResponse, err error) {
 	logger.Debugf("Create instance response for instance %+v", instance)
 
 	var owner string
@@ -299,7 +311,23 @@ func (a *InstanceAdapter) getInstanceResponse(ctx context.Context, instance *mod
 		}
 	}
 	instanceResp.Volumes = volumes
-	hyper, hyperErr := hyperAdmin.GetHyperByHostid(ctx, instance.Hyper)
+	
+	// 优化hyper查询：使用批量查询结果或单次查询
+	var hyper *model.Hyper
+	var hyperErr error
+	
+	if len(hypersMap) > 0 && hypersMap[0] != nil {
+		// 使用批量查询的结果
+		if h, exists := hypersMap[0][instance.Hyper]; exists {
+			hyper = h
+		} else {
+			hyperErr = fmt.Errorf("hyper not found in batch result")
+		}
+	} else {
+		// 使用原有的单次查询方式
+		hyper, hyperErr = hyperAdmin.GetHyperByHostid(ctx, instance.Hyper)
+	}
+	
 	if hyperErr == nil {
 		instanceResp.Hypervisor = &BaseReference{
 			ID:   strconv.Itoa(int(instance.Hyper)),

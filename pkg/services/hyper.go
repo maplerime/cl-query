@@ -72,6 +72,35 @@ func (a *HyperAdmin) GetHyperByHostid(ctx context.Context, hostid int32) (hyper 
 	return
 }
 
+func (a *HyperAdmin) GetHypersByHostids(ctx context.Context, hostids []int32) (hypers map[int32]*model.Hyper, err error) {
+	if len(hostids) == 0 {
+		return make(map[int32]*model.Hyper), nil
+	}
+
+	memberShip := GetMemberShip(ctx)
+	permit := memberShip.CheckPermission(model.Admin)
+	if !permit {
+		err = fmt.Errorf("Not authorized for this operation")
+		logger.Error("Not authorized for this operation", err)
+		return
+	}
+
+	_, db := GetContextDB(ctx)
+
+	var hyperList []*model.Hyper
+	if err = db.Where("hostid IN (?)", hostids).Find(&hyperList).Error; err != nil {
+		logger.Error("Failed to batch query hypervisors", err)
+		return
+	}
+
+	hypers = make(map[int32]*model.Hyper)
+	for _, hyper := range hyperList {
+		hypers[hyper.Hostid] = hyper
+	}
+
+	return
+}
+
 func (a *HyperAdmin) GetHyperByHostname(ctx context.Context, hostname string) (hyper *model.Hyper, err error) {
 	memberShip := GetMemberShip(ctx)
 	permit := memberShip.CheckPermission(model.Admin)
