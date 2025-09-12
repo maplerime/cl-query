@@ -354,7 +354,7 @@ func (a *InstanceAdmin) ListWithJoins(ctx context.Context, offset, limit int64, 
 	// 构建基础JOIN查询
 	joinDB := db.Model(&model.Instance{}).
 		Joins("LEFT JOIN organizations ON organizations.id = instances.owner").
-		Joins("LEFT JOIN interfaces ON interfaces.instance = instances.id").
+		Joins("LEFT JOIN interfaces ON interfaces.instance = instances.id AND interfaces.deleted_at IS NULL").
 		Joins("LEFT JOIN addresses ON addresses.interface = interfaces.id AND addresses.deleted_at IS NULL").
 		Joins("LEFT JOIN addresses AS addresses2 ON addresses2.second_interface = interfaces.id AND addresses2.deleted_at IS NULL").
 		Joins("LEFT JOIN floating_ips ON floating_ips.instance_id = instances.id AND floating_ips.deleted_at IS NULL").
@@ -373,43 +373,76 @@ func (a *InstanceAdmin) ListWithJoins(ctx context.Context, offset, limit int64, 
 	joinDB = dbs.Sortby(joinDB.Offset(offset).Limit(limit), order)
 
 	// 查询实例
-	if err = joinDB.Preload("Volumes").Preload("Image").Preload("Zone").Preload("Flavor").Preload("Keys").Where(where).Where(query).Group("instances.id").Find(&instances).Error; err != nil {
+	if err = joinDB.
+		Preload("Volumes").
+		Preload("Image").
+		Preload("Zone").
+		Preload("Flavor").
+		Preload("Router").
+		Preload("Interfaces", func(db *gorm.DB) *gorm.DB {
+			return db.
+				Preload("SiteSubnets").
+				Preload("SiteSubnets.Group").
+				Preload("SecurityGroups").
+				Preload("Address").
+				Preload("Address.Subnet").
+				Preload("SecondAddresses", func(db *gorm.DB) *gorm.DB {
+					return db.Order("addresses.updated_at")
+				}).
+				Preload("SecondAddresses.Subnet")
+		}).
+		Preload("FloatingIps", func(db *gorm.DB) *gorm.DB {
+			return db.Preload("Group").Preload("Subnet").Order("updated_at")
+		}).
+		Where(where).
+		Where(query).
+		Group("instances.id").Find(&instances).Error; err != nil {
 		logger.Errorf("Failed to query instances with joins: %v", err)
 		return
 	}
 
-	db = db.Offset(0).Limit(-1)
-	for _, instance := range instances {
-
-		// Preload Interfaces
-		if err = db.Preload("SiteSubnets").Preload("SiteSubnets.Group").Preload("SecurityGroups").Preload("Address").Preload("Address.Subnet").Preload("SecondAddresses", func(db *gorm.DB) *gorm.DB {
-			return db.Order("addresses.updated_at")
-		}).Preload("SecondAddresses.Subnet").Where("instance = ?", instance.ID).Find(&instance.Interfaces).Error; err != nil {
-			logger.Errorf("Failed to query interfaces %v", err)
-		}
-
-		// Preload FloatingIps
-		if err = db.Preload("Group").Preload("Subnet").Order("updated_at").Where("instance_id = ?", instance.ID).Find(&instance.FloatingIps).Error; err != nil {
-			logger.Errorf("Failed to query floating ip(s), %v", err)
-		}
-
-		// Preload Router
-		if instance.RouterID > 0 {
-			instance.Router = &model.Router{Model: model.Model{ID: instance.RouterID}}
-			if err = db.Take(instance.Router).Error; err != nil {
-				logger.Errorf("Failed to query router: %v", err)
-			}
-		}
-
-		// Preload OwnerInfo for admin users
-		permit := memberShip.CheckPermission(model.Admin)
-		if permit {
-			instance.OwnerInfo = &model.Organization{Model: model.Model{ID: instance.Owner}}
-			if err = db.Take(instance.OwnerInfo).Error; err != nil {
-				logger.Error("Failed to query owner info", err)
-			}
-		}
+	if err = a.batchLoadOwnerInfo(ctx, instances); err != nil {
+		logger.Errorf("Failed to load owner info: %v", err)
+		return
 	}
 
 	return
+}
+
+func (a *InstanceAdmin) batchLoadOwnerInfo(ctx context.Context, instances []*model.Instance) error {
+	// 收集所有需要查询的组织ID
+	ownerIDs := make(map[int64]bool)
+	for _, instance := range instances {
+		ownerIDs[instance.Owner] = true
+	}
+
+	if len(ownerIDs) == 0 {
+		return nil
+	}
+
+	// 批量查询组织信息
+	var orgIDs []int64
+	for id := range ownerIDs {
+		orgIDs = append(orgIDs, id)
+	}
+
+	var orgs []*model.Organization
+	if err := DB().Where("id IN (?)", orgIDs).Find(&orgs).Error; err != nil {
+		return err
+	}
+
+	// 创建组织ID到信息的映射
+	orgMap := make(map[int64]*model.Organization)
+	for _, org := range orgs {
+		orgMap[org.ID] = org
+	}
+
+	// 为每个实例设置组织信息
+	for _, instance := range instances {
+		if org, exists := orgMap[instance.Owner]; exists {
+			instance.OwnerInfo = org
+		}
+	}
+
+	return nil
 }

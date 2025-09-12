@@ -36,9 +36,7 @@ type InstanceResponse struct {
 	Cpu         int32                 `json:"cpu"`
 	Memory      int32                 `json:"memory"`
 	Disk        int32                 `json:"disk"`
-	Flavor      string                `json:"flavor"`
 	Image       *ResourceReference    `json:"image"`
-	Keys        []*ResourceReference  `json:"keys"`
 	PasswdLogin bool                  `json:"passwd_login"`
 	ZoneName    string                `json:"zone_name"`
 	ZoneRemark  string                `json:"zone_remark"`
@@ -249,7 +247,14 @@ func (a *InstanceAdapter) Get(c *gin.Context, id string) (resp interface{}, err 
 
 func (a *InstanceAdapter) getInstanceResponse(ctx context.Context, instance *model.Instance) (instanceResp *InstanceResponse, err error) {
 	logger.Debugf("Create instance response for instance %+v", instance)
-	owner := orgAdmin.GetOrgName(ctx, instance.Owner)
+
+	var owner string
+	if instance.OwnerInfo != nil {
+		owner = instance.OwnerInfo.Name
+	} else {
+		owner = orgAdmin.GetOrgName(ctx, instance.Owner)
+	}
+
 	instanceResp = &InstanceResponse{
 		ResourceReference: &ResourceReference{
 			ID:        instance.UUID,
@@ -274,7 +279,6 @@ func (a *InstanceAdapter) getInstanceResponse(ctx context.Context, instance *mod
 		}
 	}
 	if instance.Flavor != nil {
-		instanceResp.Flavor = instance.Flavor.Name
 		instanceResp.Cpu = instance.Flavor.Cpu
 		instanceResp.Memory = instance.Flavor.Memory
 		instanceResp.Disk = instance.Flavor.Disk
@@ -283,14 +287,6 @@ func (a *InstanceAdapter) getInstanceResponse(ctx context.Context, instance *mod
 		instanceResp.ZoneName = instance.Zone.Name
 		instanceResp.ZoneRemark = instance.Zone.Remark
 	}
-	keys := make([]*ResourceReference, len(instance.Keys))
-	for i, key := range instance.Keys {
-		keys[i] = &ResourceReference{
-			ID:   key.UUID,
-			Name: key.Name,
-		}
-	}
-	instanceResp.Keys = keys
 	volumes := make([]*VolumeInfoResponse, len(instance.Volumes))
 	for i, volume := range instance.Volumes {
 		volumes[i] = &VolumeInfoResponse{
