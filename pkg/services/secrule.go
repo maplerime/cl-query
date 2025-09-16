@@ -8,7 +8,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"web/src/model"
 
 	. "github.com/maplerime/cl-query/pkg/common"
@@ -22,7 +21,7 @@ func (a *SecruleAdmin) List(ctx context.Context, offset, limit int64, order, que
 	permit := memberShip.CheckPermission(model.Reader)
 	if !permit {
 		logger.Error("Not authorized for this operation")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized for this operation", nil)
 		return
 	}
 	ctx, db := GetContextDB(ctx)
@@ -38,11 +37,13 @@ func (a *SecruleAdmin) List(ctx context.Context, offset, limit int64, order, que
 	secrules = []*model.SecurityRule{}
 	if err = db.Model(&model.SecurityRule{}).Where(where).Where(query).Count(&total).Error; err != nil {
 		logger.Error("DB failed to count security rule(s), %v", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count security rule(s)", err)
 		return
 	}
 	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
 	if err = db.Where(where).Where(query).Find(&secrules).Error; err != nil {
 		logger.Error("DB failed to query security rule(s), %v", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to query security rule(s)", err)
 		return
 	}
 
@@ -51,7 +52,7 @@ func (a *SecruleAdmin) List(ctx context.Context, offset, limit int64, order, que
 
 func (a *SecruleAdmin) Get(ctx context.Context, id int64, secgroup *model.SecurityGroup) (secrule *model.SecurityRule, err error) {
 	if id <= 0 {
-		err = fmt.Errorf("Invalid security rule ID: %d", id)
+		err = NewCLError(ErrInvalidParameter, "Invalid security rule ID", nil)
 		logger.Error(err)
 		return
 	}
@@ -62,12 +63,13 @@ func (a *SecruleAdmin) Get(ctx context.Context, id int64, secgroup *model.Securi
 	err = db.Where(where).Take(secrule).Error
 	if err != nil {
 		logger.Error("Failed to query secrule", err)
+		err = NewCLError(ErrSecurityRuleNotFound, "Security rule not found", err)
 		return
 	}
 	permit := memberShip.ValidateOwner(model.Reader, secrule.Owner)
 	if !permit {
 		logger.Error("Not authorized to get security group")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to get security group", nil)
 		return
 	}
 	return
@@ -81,12 +83,13 @@ func (a *SecruleAdmin) GetSecruleByUUID(ctx context.Context, uuID string) (secru
 	err = db.Where(where).Where("uuid = ?", uuID).Take(secrule).Error
 	if err != nil {
 		logger.Error("Failed to query secrule", err)
+		err = NewCLError(ErrSecurityRuleNotFound, "Security rule not found", err)
 		return
 	}
 	permit := memberShip.ValidateOwner(model.Reader, secrule.Owner)
 	if !permit {
 		logger.Error("Not authorized to get security group")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to get security group", nil)
 		return
 	}
 	return

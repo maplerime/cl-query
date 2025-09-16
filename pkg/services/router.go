@@ -9,7 +9,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"web/src/model"
 
 	"github.com/maplerime/cl-query/pkg/dbs"
@@ -42,12 +41,13 @@ func (a *RouterAdmin) Get(ctx context.Context, id int64) (router *model.Router, 
 	router = &model.Router{Model: model.Model{ID: id}}
 	if err = db.Preload("Subnets").Where(where).Take(router).Error; err != nil {
 		logger.Error("Failed to query router", err)
+		err = NewCLError(ErrRouterNotFound, "Failed to find router", err)
 		return
 	}
 	permit := memberShip.ValidateOwner(model.Reader, router.Owner)
 	if !permit {
 		logger.Error("Not authorized to read the router")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to read the router", nil)
 		return
 	}
 	return
@@ -61,12 +61,13 @@ func (a *RouterAdmin) GetRouterByUUID(ctx context.Context, uuID string) (router 
 	err = db.Preload("Subnets").Where(where).Where("uuid = ?", uuID).Take(router).Error
 	if err != nil {
 		logger.Error("Failed to query router, %v", err)
+		err = NewCLError(ErrRouterNotFound, "Failed to find router", err)
 		return
 	}
 	permit := memberShip.ValidateOwner(model.Reader, router.Owner)
 	if !permit {
 		logger.Error("Not authorized to read the router")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to read the router", nil)
 		return
 	}
 	return
@@ -80,12 +81,13 @@ func (a *RouterAdmin) GetRouterByName(ctx context.Context, name string) (router 
 	err = db.Preload("Subnets").Where(where).Where("name = ?", name).Take(router).Error
 	if err != nil {
 		logger.Error("Failed to query router, %v", err)
+		err = NewCLError(ErrRouterNotFound, "Failed to find router", err)
 		return
 	}
 	permit := memberShip.ValidateOwner(model.Reader, router.Owner)
 	if !permit {
 		logger.Error("Not authorized to read the router")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to read the router", nil)
 		return
 	}
 	return
@@ -93,7 +95,7 @@ func (a *RouterAdmin) GetRouterByName(ctx context.Context, name string) (router 
 
 func (a *RouterAdmin) GetRouter(ctx context.Context, reference *BaseReference) (router *model.Router, err error) {
 	if reference == nil || (reference.ID == "" && reference.Name == "") {
-		err = fmt.Errorf("Router base reference must be provided with either uuid or name")
+		err = NewCLError(ErrInvalidParameter, "Router base reference must be provided with either uuid or name", nil)
 		return
 	}
 	if reference.ID != "" {
@@ -122,11 +124,13 @@ func (a *RouterAdmin) List(ctx context.Context, offset, limit int64, order, quer
 	routers = []*model.Router{}
 	if err = db.Model(&model.Router{}).Where(where).Where(query).Count(&total).Error; err != nil {
 		logger.Error("DB failed to count router, %v", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count router", err)
 		return
 	}
 	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
 	if err = db.Preload("Subnets").Where(where).Where(query).Find(&routers).Error; err != nil {
 		logger.Error("DB failed to query routers, %v", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to query routers", err)
 		return
 	}
 	permit := memberShip.CheckPermission(model.Admin)
@@ -136,6 +140,7 @@ func (a *RouterAdmin) List(ctx context.Context, offset, limit int64, order, quer
 			router.OwnerInfo = &model.Organization{Model: model.Model{ID: router.Owner}}
 			if err = db.Take(router.OwnerInfo).Error; err != nil {
 				logger.Error("Failed to query owner info", err)
+				err = NewCLError(ErrOwnerNotFound, "Failed to query owner info", err)
 				return
 			}
 		}
@@ -163,6 +168,7 @@ func (a *SubnetAdmin) AddressStatistics(ctx context.Context, subnet *model.Subne
 
 	if err = query.Scan(&result).Error; err != nil {
 		logger.Error("Failed to count addresses for subnet", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count addresses for subnet", err)
 		return
 	}
 

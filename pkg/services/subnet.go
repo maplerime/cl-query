@@ -47,7 +47,7 @@ func getValidVni(ctx context.Context) (vni int, err error) {
 
 func (a *SubnetAdmin) Get(ctx context.Context, id int64) (subnet *model.Subnet, err error) {
 	if id <= 0 {
-		err = fmt.Errorf("Invalid subnet ID: %d", id)
+		err = NewCLError(ErrInvalidParameter, "Invalid subnet ID", err)
 		logger.Error(err)
 		return
 	}
@@ -57,6 +57,7 @@ func (a *SubnetAdmin) Get(ctx context.Context, id int64) (subnet *model.Subnet, 
 	err = db.Preload("Router").Preload("Group").Take(subnet).Error
 	if err != nil {
 		logger.Error("DB failed to query subnet ", err)
+		err = NewCLError(ErrSubnetNotFound, "Subnet not found", err)
 		return
 	}
 	if subnet.RouterID > 0 {
@@ -64,6 +65,7 @@ func (a *SubnetAdmin) Get(ctx context.Context, id int64) (subnet *model.Subnet, 
 		err = db.Take(subnet.Router).Error
 		if err != nil {
 			logger.Error("Failed to query router ", err)
+			err = NewCLError(ErrRouterNotFound, "Router not found", err)
 			return
 		}
 	}
@@ -71,7 +73,7 @@ func (a *SubnetAdmin) Get(ctx context.Context, id int64) (subnet *model.Subnet, 
 		permit := memberShip.ValidateOwner(model.Reader, subnet.Owner)
 		if !permit {
 			logger.Error("Not authorized to read the subnet")
-			err = fmt.Errorf("Not authorized")
+			err = NewCLError(ErrPermissionDenied, "Not authorized to read the subnet", nil)
 			return
 		}
 	}
@@ -85,6 +87,7 @@ func (a *SubnetAdmin) GetSubnetByUUID(ctx context.Context, uuID string) (subnet 
 	err = db.Preload("Router").Preload("Group").Where("uuid = ?", uuID).Take(subnet).Error
 	if err != nil {
 		logger.Error("Failed to query subnet, %v", err)
+		err = NewCLError(ErrSubnetNotFound, "Subnet not found", err)
 		return
 	}
 	if subnet.RouterID > 0 {
@@ -92,6 +95,7 @@ func (a *SubnetAdmin) GetSubnetByUUID(ctx context.Context, uuID string) (subnet 
 		err = db.Take(subnet.Router).Error
 		if err != nil {
 			logger.Error("Failed to query router ", err)
+			err = NewCLError(ErrRouterNotFound, "Router not found", err)
 			return
 		}
 	}
@@ -99,7 +103,7 @@ func (a *SubnetAdmin) GetSubnetByUUID(ctx context.Context, uuID string) (subnet 
 		permit := memberShip.ValidateOwner(model.Reader, subnet.Owner)
 		if !permit {
 			logger.Error("Not authorized to read the subnet")
-			err = fmt.Errorf("Not authorized")
+			err = NewCLError(ErrPermissionDenied, "Not authorized to read the subnet", nil)
 			return
 		}
 	}
@@ -113,6 +117,7 @@ func (a *SubnetAdmin) GetSubnetByName(ctx context.Context, name string) (subnet 
 	err = db.Preload("Router").Preload("Group").Where("name = ?", name).Take(subnet).Error
 	if err != nil {
 		logger.Error("Failed to query subnet ", err)
+		err = NewCLError(ErrSubnetNotFound, "Subnet not found", err)
 		return
 	}
 	if subnet.RouterID > 0 {
@@ -120,6 +125,7 @@ func (a *SubnetAdmin) GetSubnetByName(ctx context.Context, name string) (subnet 
 		err = db.Take(subnet.Router).Error
 		if err != nil {
 			logger.Error("Failed to query router ", err)
+			err = NewCLError(ErrRouterNotFound, "Router not found", err)
 			return
 		}
 	}
@@ -127,7 +133,7 @@ func (a *SubnetAdmin) GetSubnetByName(ctx context.Context, name string) (subnet 
 		permit := memberShip.ValidateOwner(model.Reader, subnet.Owner)
 		if !permit {
 			logger.Error("Not authorized to read the subnet")
-			err = fmt.Errorf("Not authorized")
+			err = NewCLError(ErrPermissionDenied, "Not authorized to read the subnet", nil)
 			return
 		}
 	}
@@ -136,7 +142,7 @@ func (a *SubnetAdmin) GetSubnetByName(ctx context.Context, name string) (subnet 
 
 func (a *SubnetAdmin) GetSubnet(ctx context.Context, reference *BaseReference) (subnet *model.Subnet, err error) {
 	if reference == nil || (reference.ID == "" && reference.Name == "") {
-		err = fmt.Errorf("Subnet base reference must be provided with either uuid or name")
+		err = NewCLError(ErrInvalidParameter, "Subnet base reference must be provided with either uuid or name", nil)
 		return
 	}
 	if reference.ID != "" {
@@ -162,7 +168,7 @@ func (a *SubnetAdmin) CountIdleAddressesForSubnet(ctx context.Context, subnet *m
 
 	if err != nil {
 		if err.Error() != "record not found" {
-			return 0, fmt.Errorf("failed to count idle addresses for subnet %s: %v", subnet.UUID, err)
+			return 0, NewCLError(ErrSQLSyntaxError, "Failed to count idle addresses", err)
 		}
 	}
 
@@ -207,6 +213,7 @@ func (a *SubnetAdmin) List(ctx context.Context, offset, limit int64, order, quer
 
 	// 计算总数
 	if err = baseQuery.Count(&total).Error; err != nil {
+		err = NewCLError(ErrSQLSyntaxError, "Database failed to count subnets", err)
 		return
 	}
 
@@ -214,6 +221,7 @@ func (a *SubnetAdmin) List(ctx context.Context, offset, limit int64, order, quer
 	resultQuery := baseQuery.Select("subnets.*").Offset(offset).Limit(limit)
 	resultQuery = dbs.Sortby(resultQuery, order)
 	if err = resultQuery.Preload("Group").Preload("Router").Find(&subnets).Error; err != nil {
+		err = NewCLError(ErrSQLSyntaxError, "Database failed to query subnets", err)
 		return
 	}
 
@@ -224,6 +232,7 @@ func (a *SubnetAdmin) List(ctx context.Context, offset, limit int64, order, quer
 			subnet.OwnerInfo = &model.Organization{Model: model.Model{ID: subnet.Owner}}
 			if err = ownerQuery.Take(subnet.OwnerInfo).Error; err != nil {
 				logger.Error("Failed to query owner info", err)
+				err = NewCLError(ErrUserNotFound, "Failed to query owner info", err)
 				return
 			}
 		}
@@ -244,10 +253,12 @@ func (a *SubnetAdmin) AddressList(ctx context.Context, offset, limit int64, orde
 
 	addresses = []*model.Address{}
 	if err = db.Model(&model.Address{}).Where(query).Count(&total).Error; err != nil {
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count addresses", err)
 		return
 	}
 	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
 	if err = db.Preload("Subnet").Where(query).Find(&addresses).Error; err != nil {
+		err = NewCLError(ErrSQLSyntaxError, "Failed to query addresses", err)
 		return
 	}
 	return
@@ -259,6 +270,7 @@ func (a *SubnetAdmin) GetAddressByUUID(ctx context.Context, uuID string) (addres
 	err = db.Preload("Subnet").Where("uuid = ?", uuID).Take(address).Error
 	if err != nil {
 		logger.Error("Failed to query address, %v", err)
+		err = NewCLError(ErrAddressNotFound, "Address not found", err)
 		return
 	}
 	return
@@ -270,6 +282,7 @@ func (a *SubnetAdmin) GetAddressesBySubnet(ctx context.Context, subnetID int64) 
 	err = db.Where("subnet_id = ?", subnetID).Order("address::inet").Find(&addresses).Error
 	if err != nil {
 		logger.Error("Failed to query addresses by subnet_id, %v", err)
+		err = NewCLError(ErrSQLSyntaxError, "Find to query addresses", err)
 		return
 	}
 	return

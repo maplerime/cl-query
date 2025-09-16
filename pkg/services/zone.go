@@ -29,10 +29,12 @@ func (a *ZoneAdmin) List(ctx context.Context, offset, limit int64, order, query 
 
 	zones = []*model.Zone{}
 	if err = db.Model(&model.Zone{}).Where(query).Count(&total).Error; err != nil {
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count zones", err)
 		return
 	}
 	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
 	if err = db.Model(&model.Zone{}).Where(query).Find(&zones).Error; err != nil {
+		err = NewCLError(ErrSQLSyntaxError, "Failed to query zones", err)
 		return
 	}
 	db = db.Offset(0).Limit(-1)
@@ -44,6 +46,7 @@ func (a *ZoneAdmin) Get(ctx context.Context, id int64) (zone *model.Zone, err er
 	zone = &model.Zone{ID: id}
 	if err = db.Take(zone).Error; err != nil {
 		logger.Error("Failed to query zone", err)
+		err = NewCLError(ErrZoneNotFound, "Zone not found", err)
 		return
 	}
 	return
@@ -55,6 +58,7 @@ func (a *ZoneAdmin) GetZoneByName(ctx context.Context, name string) (zone *model
 	err = db.Where("name = ?", name).Take(zone).Error
 	if err != nil {
 		logger.Error("Failed to query zone, %v", err)
+		err = NewCLError(ErrZoneNotFound, "Zone not found", err)
 		return
 	}
 	return

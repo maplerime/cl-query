@@ -2,7 +2,7 @@ module github.com/maplerime/cl-query
 
 go 1.24.1
 
-replace web => github.com/maplerime/cloudland/web v0.0.0-20250903054020-dfafcc511853
+replace web => github.com/maplerime/cloudland/web v0.0.0-20250916083640-b97cabca56ee
 
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
@@ -13,6 +13,7 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.6.0
 	github.com/jinzhu/gorm v1.9.16
+	github.com/lib/pq v1.10.2
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/pkg/profile v1.7.0
 	github.com/spf13/viper v1.19.0
@@ -67,7 +68,6 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
-	github.com/lib/pq v1.10.2 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

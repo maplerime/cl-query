@@ -99,7 +99,7 @@ func (a *ZoneAdapter) List(c *gin.Context, req *ResourceQueryRequest) (interface
 	query, err := a.MakeQuery(c, req.Filters)
 	if err != nil {
 		logger.Errorf("Failed to process filters: %v", err)
-		return nil, fmt.Errorf("failed to process filters: %w", err)
+		return nil, err
 	}
 
 	// 调用 service 层
@@ -178,7 +178,7 @@ func (a *ZoneAdapter) aggregateHyperResources(ctx context.Context, zoneID int64,
 	query := fmt.Sprintf("zone_id = %d", zoneID)
 	_, hypers, err := a.hyperService.List(ctx, 0, -1, "", query)
 	if err != nil {
-		return fmt.Errorf("failed to get hypers for zone %d: %w", zoneID, err)
+		return err
 	}
 
 	// hyper总数

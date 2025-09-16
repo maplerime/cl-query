@@ -162,14 +162,14 @@ func (a *SubnetAdapter) List(c *gin.Context, req *ResourceQueryRequest) (interfa
 	query, err := a.MakeQuery(c, req.Filters)
 	if err != nil {
 		logger.Errorf("Failed to process filters: %v", err)
-		return nil, fmt.Errorf("failed to process filters: %w", err)
+		return nil, err
 	}
 
 	hasIdleIP := false
 	if h, ok := req.Filters["has_idle_ip"]; ok {
 		if hasIdleIP, ok = h.(bool); !ok {
 			logger.Errorf("Invalid has_idle_ip filter value: %v", h)
-			return nil, fmt.Errorf("invalid has_idle_ip filter value: %v", h)
+			return nil, NewCLError(ErrInvalidParameter, "has_idle_ip filter must be a boolean", nil)
 		}
 	}
 

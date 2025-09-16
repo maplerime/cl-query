@@ -25,13 +25,14 @@ func (a *MigrationAdmin) GetMigrationByUUID(ctx context.Context, uuID string) (m
 	err = db.Preload("Instance").Preload("Phases").Where("uuid = ?", uuID).Take(migration).Error
 	if err != nil {
 		logger.Error("Failed to query migration, %v", err)
+		err = NewCLError(ErrMigrationNotFound, "Failed to find migration", err)
 		return
 	}
 	memberShip := GetMemberShip(ctx)
 	permit := memberShip.CheckPermission(model.Admin)
 	if !permit {
 		logger.Error("Not authorized to get migration")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to get migration", nil)
 		return
 	}
 	return
@@ -43,13 +44,14 @@ func (a *MigrationAdmin) GetMigrationByName(ctx context.Context, name string) (m
 	err = db.Where("name = ?", name).Take(migration).Error
 	if err != nil {
 		logger.Error("Failed to query migration, %v", err)
+		err = NewCLError(ErrMigrationNotFound, "Failed to find migration", err)
 		return
 	}
 	memberShip := GetMemberShip(ctx)
 	permit := memberShip.CheckPermission(model.Admin)
 	if !permit {
 		logger.Error("Not authorized to get migration")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to get migration", nil)
 		return
 	}
 	return
@@ -57,7 +59,7 @@ func (a *MigrationAdmin) GetMigrationByName(ctx context.Context, name string) (m
 
 func (a *MigrationAdmin) Get(ctx context.Context, id int64) (migration *model.Migration, err error) {
 	if id <= 0 {
-		err = fmt.Errorf("Invalid migration ID: %d", id)
+		err = NewCLError(ErrInvalidParameter, fmt.Sprintf("Invalid migration ID: %d", id), nil)
 		logger.Error(err)
 		return
 	}
@@ -66,13 +68,14 @@ func (a *MigrationAdmin) Get(ctx context.Context, id int64) (migration *model.Mi
 	err = db.Take(migration).Error
 	if err != nil {
 		logger.Error("DB failed to query migration, %v", err)
+		err = NewCLError(ErrMigrationNotFound, "Failed to find migration", err)
 		return
 	}
 	memberShip := GetMemberShip(ctx)
 	permit := memberShip.CheckPermission(model.Admin)
 	if !permit {
 		logger.Error("Not authorized to get migration")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to get migration", nil)
 		return
 	}
 	return
@@ -80,7 +83,7 @@ func (a *MigrationAdmin) Get(ctx context.Context, id int64) (migration *model.Mi
 
 func (a *MigrationAdmin) GetMigration(ctx context.Context, reference *BaseReference) (migration *model.Migration, err error) {
 	if reference == nil || (reference.ID == "" && reference.Name == "") {
-		err = fmt.Errorf("Migration base reference must be provided with either uuid or name")
+		err = NewCLError(ErrInvalidParameter, "Migration base reference must be provided with either uuid or name", nil)
 		return
 	}
 	if reference.ID != "" {
@@ -109,10 +112,12 @@ func (a *MigrationAdmin) List(ctx context.Context, offset, limit int64, order, q
 	}
 	migrations = []*model.Migration{}
 	if err = db.Model(&model.Migration{}).Where(query).Count(&total).Error; err != nil {
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count migrations", err)
 		return
 	}
 	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
 	if err = db.Preload("Instance").Preload("Phases").Where(query).Find(&migrations).Error; err != nil {
+		err = NewCLError(ErrSQLSyntaxError, "Failed to query migrations", err)
 		return
 	}
 

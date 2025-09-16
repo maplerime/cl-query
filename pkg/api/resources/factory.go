@@ -14,7 +14,7 @@
 package resources
 
 import (
-	"fmt"
+	"github.com/maplerime/cl-query/pkg/common"
 
 	"github.com/maplerime/cl-query/pkg/api/resources/adapters"
 )
@@ -83,7 +83,7 @@ func (f *AdapterFactory) Register(resourceType string, creator func() adapters.R
 func (f *AdapterFactory) CreateAdapter(resourceType string) (adapters.ResourceAdapter, error) {
 	creator, exists := f.adapters[resourceType]
 	if !exists {
-		return nil, fmt.Errorf("unsupported resource type: %s", resourceType)
+		return nil, common.NewCLError(common.ErrInvalidParameter, "unsupported resource type", nil)
 	}
 	return creator(), nil
 }

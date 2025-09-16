@@ -128,7 +128,7 @@ func (a *HyperAdapter) List(c *gin.Context, req *ResourceQueryRequest) (interfac
 	query, err := a.MakeQuery(c, req.Filters)
 	if err != nil {
 		logger.Errorf("Failed to process filters: %v", err)
-		return nil, fmt.Errorf("failed to process filters: %w", err)
+		return nil, err
 	}
 
 	// 调用 service 层

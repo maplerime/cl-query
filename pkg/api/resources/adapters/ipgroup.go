@@ -119,7 +119,7 @@ func (a *IpGroupAdapter) List(c *gin.Context, req *ResourceQueryRequest) (interf
 	query, err := a.MakeQuery(c, req.Filters)
 	if err != nil {
 		logger.Errorf("Failed to process filters: %v", err)
-		return nil, fmt.Errorf("failed to process filters: %w", err)
+		return nil, err
 	}
 
 	// 调用 service 层
@@ -186,7 +186,7 @@ func (a *IpGroupAdapter) getIpGroupResponse(ctx context.Context, ipGroup *model.
 		itemTotal, itemAllocated, itemReserved, itemIdle, err = a.subnetService.AddressStatistics(ctx, subnet)
 		if err != nil {
 			logger.Errorf("address statistics error, subnet=%s, err=%v", subnet.UUID, err)
-			return nil, fmt.Errorf("failed to get address statistics for subnet %s: %w", subnet.UUID, err)
+			return nil, err
 		}
 		total += itemTotal
 		allocated += itemAllocated

@@ -19,7 +19,7 @@ type VolumeAdmin struct{}
 
 func (a *VolumeAdmin) Get(ctx context.Context, id int64) (volume *model.Volume, err error) {
 	if id <= 0 {
-		err = fmt.Errorf("Invalid subnet ID: %d", id)
+		err = NewCLError(ErrInvalidParameter, fmt.Sprintf("Invalid volume ID: %d", id), nil)
 		logger.Error(err)
 		return
 	}
@@ -29,12 +29,13 @@ func (a *VolumeAdmin) Get(ctx context.Context, id int64) (volume *model.Volume, 
 	volume = &model.Volume{Model: model.Model{ID: id}}
 	if err = db.Preload("Instance").Where(where).Take(volume).Error; err != nil {
 		logger.Error("Failed to query volume, %v", err)
+		err = NewCLError(ErrVolumeNotFound, "Failed to query volume", err)
 		return
 	}
 	permit := memberShip.ValidateOwner(model.Reader, volume.Owner)
 	if !permit {
 		logger.Error("Not authorized to read the volume")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to read the volume", nil)
 		return
 	}
 	return
@@ -48,12 +49,13 @@ func (a *VolumeAdmin) GetVolumeByUUID(ctx context.Context, uuID string) (volume 
 	err = db.Preload("Instance").Where(where).Where("uuid = ?", uuID).Take(volume).Error
 	if err != nil {
 		logger.Error("DB: query volume failed", err)
+		err = NewCLError(ErrVolumeNotFound, "Volume not found", err)
 		return
 	}
 	permit := memberShip.ValidateOwner(model.Reader, volume.Owner)
 	if !permit {
 		logger.Error("Not authorized to read the volume")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to read the volume", nil)
 		return
 	}
 	return
@@ -74,10 +76,12 @@ func (a *VolumeAdmin) ListVolume(ctx context.Context, offset, limit int64, order
 
 	volumes = []*model.Volume{}
 	if err = db.Model(&model.Volume{}).Where(where).Where(query).Count(&total).Error; err != nil {
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count volumes", err)
 		return
 	}
 	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
 	if err = db.Preload("Instance").Where(where).Where(query).Find(&volumes).Error; err != nil {
+		err = NewCLError(ErrSQLSyntaxError, "Failed to query volumes", err)
 		return
 	}
 	permit := memberShip.CheckPermission(model.Admin)
@@ -87,6 +91,7 @@ func (a *VolumeAdmin) ListVolume(ctx context.Context, offset, limit int64, order
 			vol.OwnerInfo = &model.Organization{Model: model.Model{ID: vol.Owner}}
 			if err = db.Take(vol.OwnerInfo).Error; err != nil {
 				logger.Error("Failed to query owner info", err)
+				err = NewCLError(ErrOwnerNotFound, "Owner organization not found", err)
 				return
 			}
 		}

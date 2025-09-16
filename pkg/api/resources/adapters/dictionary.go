@@ -103,7 +103,7 @@ func (a *DictionaryAdapter) List(c *gin.Context, req *ResourceQueryRequest) (int
 	query, err := a.MakeQuery(c, req.Filters)
 	if err != nil {
 		logger.Errorf("Failed to process filters: %v", err)
-		return nil, fmt.Errorf("failed to process filters: %w", err)
+		return nil, err
 	}
 
 	total, dictionaries, err := a.service.List(ctx, int64(req.Offset), int64(req.Limit), req.Order, query)

@@ -107,7 +107,7 @@ func (a *VolumeAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interfac
 	if filters.InstanceID != "" {
 		inst, err := a.instanceService.GetInstanceByUUID(c.Request.Context(), filters.InstanceID)
 		if err != nil {
-			return "", fmt.Errorf("failed to get Instance by UUID %s: %w", filters.InstanceID, err)
+			return "", err
 		}
 		conditions = append(conditions, fmt.Sprintf("instance_id = %d", inst.ID))
 		logger.Debugf("Added instance_id filter: %s -> instance_id = %d", filters.InstanceID, inst.ID)
@@ -131,7 +131,7 @@ func (a *VolumeAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interfac
 	} else if filters.VolumeType == "all" {
 		booting = ""
 	} else {
-		return "", fmt.Errorf("invalid volume type %s", filters.VolumeType)
+		return "", NewCLError(ErrInvalidParameter, fmt.Sprintf("Invalid volume type %s", filters.VolumeType), nil)
 	}
 	if booting != "" {
 		conditions = append(conditions, booting)
@@ -157,7 +157,7 @@ func (a *VolumeAdapter) List(c *gin.Context, req *ResourceQueryRequest) (interfa
 	query, err := a.MakeQuery(c, req.Filters)
 	if err != nil {
 		logger.Errorf("Failed to process filters: %v", err)
-		return nil, fmt.Errorf("failed to process filters: %w", err)
+		return nil, err
 	}
 
 	// 调用 service 层
@@ -195,12 +195,12 @@ func (a *VolumeAdapter) Get(c *gin.Context, id string) (interface{}, error) {
 	ctx := c.Request.Context()
 	volume, err := a.service.GetVolumeByUUID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get volume by ID %s: %w", id, err)
+		return nil, err
 	}
 
 	result, err := a.getVolumeResponse(ctx, volume)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create volume response: %w", err)
+		return nil, err
 	}
 
 	logger.Debugf("Get volume successfully: %+v", result)

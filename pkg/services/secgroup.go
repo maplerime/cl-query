@@ -8,7 +8,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"web/src/common"
 	"web/src/model"
 
@@ -29,6 +28,7 @@ func (a *SecgroupAdmin) Get(ctx context.Context, id int64) (secgroup *model.Secu
 	err = db.Where(where).Take(secgroup).Error
 	if err != nil {
 		logger.Error("DB failed to query secgroup ", err)
+		err = NewCLError(ErrSecurityGroupNotFound, "Failed to find security group", err)
 		return
 	}
 	if secgroup.RouterID > 0 {
@@ -36,6 +36,7 @@ func (a *SecgroupAdmin) Get(ctx context.Context, id int64) (secgroup *model.Secu
 		err = db.Take(secgroup.Router).Error
 		if err != nil {
 			logger.Error("DB failed to qeury router", err)
+			err = NewCLError(ErrRouterNotFound, "Failed to find router", err)
 			return
 		}
 	}
@@ -43,7 +44,7 @@ func (a *SecgroupAdmin) Get(ctx context.Context, id int64) (secgroup *model.Secu
 		permit := memberShip.ValidateOwner(model.Reader, secgroup.Owner)
 		if !permit {
 			logger.Error("Not authorized to get security group")
-			err = fmt.Errorf("Not authorized")
+			err = NewCLError(ErrPermissionDenied, "Not authorized to get security group", nil)
 			return
 		}
 	}
@@ -58,6 +59,7 @@ func (a *SecgroupAdmin) GetSecgroupByUUID(ctx context.Context, uuID string) (sec
 	err = db.Where(where).Where("uuid = ?", uuID).Take(secgroup).Error
 	if err != nil {
 		logger.Error("Failed to query secgroup ", err)
+		err = NewCLError(ErrSecurityGroupNotFound, "Failed to find security group", err)
 		return
 	}
 	if secgroup.RouterID > 0 {
@@ -65,6 +67,7 @@ func (a *SecgroupAdmin) GetSecgroupByUUID(ctx context.Context, uuID string) (sec
 		err = db.Take(secgroup.Router).Error
 		if err != nil {
 			logger.Error("DB failed to qeury router", err)
+			err = NewCLError(ErrRouterNotFound, "Failed to find router", err)
 			return
 		}
 	}
@@ -72,7 +75,7 @@ func (a *SecgroupAdmin) GetSecgroupByUUID(ctx context.Context, uuID string) (sec
 		permit := memberShip.ValidateOwner(model.Reader, secgroup.Owner)
 		if !permit {
 			logger.Error("Not authorized to get security group")
-			err = fmt.Errorf("Not authorized")
+			err = NewCLError(ErrPermissionDenied, "Not authorized to get security group", nil)
 			return
 		}
 	}
@@ -86,6 +89,7 @@ func (a *SecgroupAdmin) GetSecgroupByName(ctx context.Context, name string) (sec
 	err = db.Where("name = ?", name).Take(secgroup).Error
 	if err != nil {
 		logger.Error("Failed to query secgroup ", err)
+		err = NewCLError(ErrSecurityGroupNotFound, "Failed to find security group", err)
 		return
 	}
 	if secgroup.RouterID > 0 {
@@ -93,6 +97,7 @@ func (a *SecgroupAdmin) GetSecgroupByName(ctx context.Context, name string) (sec
 		err = db.Take(secgroup.Router).Error
 		if err != nil {
 			logger.Error("Failed to query router ", err)
+			err = NewCLError(ErrRouterNotFound, "Failed to find router", err)
 			return
 		}
 	}
@@ -100,7 +105,7 @@ func (a *SecgroupAdmin) GetSecgroupByName(ctx context.Context, name string) (sec
 		permit := memberShip.ValidateOwner(model.Reader, secgroup.Owner)
 		if !permit {
 			logger.Error("Not authorized to get security group")
-			err = fmt.Errorf("Not authorized")
+			err = NewCLError(ErrPermissionDenied, "Not authorized to get security group", nil)
 			return
 		}
 	}
@@ -109,7 +114,7 @@ func (a *SecgroupAdmin) GetSecgroupByName(ctx context.Context, name string) (sec
 
 func (a *SecgroupAdmin) GetSecurityGroup(ctx context.Context, reference *BaseReference) (secgroup *model.SecurityGroup, err error) {
 	if reference == nil || (reference.ID == "" && reference.Name == "") {
-		err = fmt.Errorf("Security group base reference must be provided with either uuid or name")
+		err = NewCLError(ErrInvalidParameter, "Security group base reference must be provided with either uuid or name", nil)
 		return
 	}
 	if reference.ID != "" {
@@ -128,6 +133,7 @@ func (a *SecgroupAdmin) GetSecgroupInterfaces(ctx context.Context, secgroup *mod
 	err = db.Model(secgroup).Preload("Address").Preload("Address.Subnet").Preload("SecondAddresses").Preload("SecondAddresses.Subnet").Preload("SiteSubnets").Where("instance > 0").Related(&secgroup.Interfaces, "Interfaces").Error
 	if err != nil {
 		logger.Error("Failed to query secgroup, %v", err)
+		err = NewCLError(ErrSecurityGroupNotFound, "Failed to find security group", err)
 		return
 	}
 	return
@@ -138,6 +144,7 @@ func (a *SecgroupAdmin) GetInterfaceSecgroups(ctx context.Context, iface *model.
 	err = db.Model(iface).Related(&iface.SecurityGroups, "Security_Groups").Error
 	if err != nil {
 		logger.Error("Failed to query interface, %v", err)
+		err = NewCLError(ErrInterfaceNotFound, "Failed to find interface", err)
 		return
 	}
 	return
@@ -148,7 +155,7 @@ func (a *SecgroupAdmin) List(ctx context.Context, offset, limit int64, order, qu
 	permit := memberShip.CheckPermission(model.Reader)
 	if !permit {
 		logger.Error("Not authorized for this operation")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized for this operation", nil)
 		return
 	}
 	ctx, db := GetContextDB(ctx)
@@ -165,11 +172,13 @@ func (a *SecgroupAdmin) List(ctx context.Context, offset, limit int64, order, qu
 	secgroups = []*model.SecurityGroup{}
 	if err = db.Model(&model.SecurityGroup{}).Where(where).Where(query).Count(&total).Error; err != nil {
 		logger.Error("DB failed to count security group(s), %v", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count security group(s)", err)
 		return
 	}
 	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
 	if err = db.Where(where).Where(query).Find(&secgroups).Error; err != nil {
 		logger.Error("DB failed to query security group(s), %v", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to query security group(s)", err)
 		return
 	}
 	for _, secgroup := range secgroups {

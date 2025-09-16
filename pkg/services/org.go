@@ -24,7 +24,7 @@ type OrgAdmin struct{}
 
 func (a *OrgAdmin) Get(ctx context.Context, id int64) (org *model.Organization, err error) {
 	if id <= 0 {
-		err = fmt.Errorf("Invalid org ID: %d", id)
+		err = NewCLError(ErrInvalidParameter, fmt.Sprintf("Invalid org ID: %d", id), nil)
 		logger.Error("%v", err)
 		return
 	}
@@ -34,13 +34,14 @@ func (a *OrgAdmin) Get(ctx context.Context, id int64) (org *model.Organization, 
 	org = &model.Organization{Model: model.Model{ID: id}}
 	err = db.Where(where).Take(org).Error
 	if err != nil {
-		logger.Error("Failed to query user, %v", err)
+		logger.Error("Failed to query org, %v", err)
+		err = NewCLError(ErrOrgNotFound, "Failed to find organization", err)
 		return
 	}
 	permit := memberShip.ValidateOwner(model.Reader, org.Owner)
 	if !permit {
 		logger.Error("Not authorized to read the org")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to read the org", nil)
 		return
 	}
 	return
@@ -54,12 +55,13 @@ func (a *OrgAdmin) GetOrgByUUID(ctx context.Context, uuID string) (org *model.Or
 	err = db.Where(where).Where("uuid = ?", uuID).Take(org).Error
 	if err != nil {
 		logger.Error("Failed to query org, %v", err)
+		err = NewCLError(ErrOrgNotFound, "Failed to find organization", err)
 		return
 	}
 	permit := memberShip.ValidateOwner(model.Reader, org.Owner)
 	if !permit {
 		logger.Error("Not authorized to read the org")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to read the org", err)
 		return
 	}
 	return
@@ -78,6 +80,7 @@ func (a *OrgAdmin) GetOrgName(ctx context.Context, id int64) (name string) {
 	err := db.Take(org, &model.Organization{Name: name}).Error
 	if err != nil {
 		logger.Error("DB failed to query org", err)
+		err = NewCLError(ErrOrgNotFound, "Failed to find organization", err)
 		return
 	}
 	name = org.Name

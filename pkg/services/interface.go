@@ -35,8 +35,8 @@ type InterfaceAdmin struct{}
 
 func (a *InterfaceAdmin) Get(ctx context.Context, id int64) (iface *model.Interface, err error) {
 	if id <= 0 {
-		err = fmt.Errorf("Invalid interface ID: %d", id)
-		logger.Debug(err)
+		err = NewCLError(ErrInvalidParameter, "Invalid interface ID", nil)
+		logger.Error(err)
 		return
 	}
 	memberShip := GetMemberShip(ctx)
@@ -47,12 +47,13 @@ func (a *InterfaceAdmin) Get(ctx context.Context, id int64) (iface *model.Interf
 	}).Preload("SecondAddresses.Subnet").Take(iface).Error
 	if err != nil {
 		logger.Debug("DB failed to query interface, %v", err)
+		err = NewCLError(ErrInterfaceNotFound, "Interface not found", err)
 		return
 	}
 	permit := memberShip.ValidateOwner(model.Reader, iface.Owner)
 	if !permit {
 		logger.Debug("Not authorized to read the subnet")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to read the interface", nil)
 		return
 	}
 	return
@@ -60,8 +61,8 @@ func (a *InterfaceAdmin) Get(ctx context.Context, id int64) (iface *model.Interf
 
 func (a *InterfaceAdmin) Fetch(ctx context.Context, id int64) (iface *model.Interface, err error) {
 	if id <= 0 {
-		err = fmt.Errorf("Invalid interface ID: %d", id)
-		logger.Debug(err)
+		err = NewCLError(ErrInvalidParameter, "Invalid interface ID", nil)
+		logger.Error(err)
 		return
 	}
 	ctx, db := GetContextDB(ctx)
@@ -69,6 +70,7 @@ func (a *InterfaceAdmin) Fetch(ctx context.Context, id int64) (iface *model.Inte
 	err = db.Take(iface).Error
 	if err != nil {
 		logger.Debug("DB failed to query interface, %v", err)
+		err = NewCLError(ErrInterfaceNotFound, "Interface not found", err)
 		return
 	}
 	return
@@ -84,12 +86,13 @@ func (a *InterfaceAdmin) GetInterfaceByUUID(ctx context.Context, uuID string) (i
 	}).Preload("SecondAddresses.Subnet").Where(where).Where("uuid = ?", uuID).Take(iface).Error
 	if err != nil {
 		logger.Debug("DB failed to query interface, %v", err)
+		err = NewCLError(ErrInterfaceNotFound, "Interface not found", err)
 		return
 	}
 	permit := memberShip.ValidateOwner(model.Reader, iface.Owner)
 	if !permit {
 		logger.Debug("Not authorized to read the subnet")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to read the interface", nil)
 		return
 	}
 	return
@@ -100,7 +103,7 @@ func (a *InterfaceAdmin) List(ctx context.Context, offset, limit int64, order st
 	permit := memberShip.ValidateOwner(model.Reader, instance.Owner)
 	if !permit {
 		logger.Debug("Not authorized for this operation")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized for this operation", nil)
 		return
 	}
 	ctx, db := GetContextDB(ctx)
@@ -120,6 +123,7 @@ func (a *InterfaceAdmin) List(ctx context.Context, offset, limit int64, order st
 	interfaces = []*model.Interface{}
 	if err = db.Model(&model.Interface{}).Where(where).Count(&total).Error; err != nil {
 		logger.Debug("DB failed to count security rule(s), %v", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count interfaces", err)
 		return
 	}
 	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
@@ -127,6 +131,7 @@ func (a *InterfaceAdmin) List(ctx context.Context, offset, limit int64, order st
 		return db.Order("addresses.updated_at")
 	}).Preload("SecondAddresses.Subnet").Where(where).Find(&interfaces).Error; err != nil {
 		logger.Debug("DB failed to query security rule(s), %v", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to query interfaces", err)
 		return
 	}
 

@@ -15,7 +15,6 @@ package adapters
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"web/src/model"
 
@@ -82,12 +81,12 @@ func (a *InterfaceAdapter) List(c *gin.Context, req *ResourceQueryRequest) (inte
 	instanceUUID := req.Filters["instance_id"]
 	if instanceUUID == "" {
 		logger.Error("Instance ID is required for Interface list query")
-		return nil, fmt.Errorf("instance_id is required")
+		return nil, NewCLError(ErrInvalidParameter, "Instance ID is required", nil)
 	}
 	instance, err := a.instanceService.GetInstanceByUUID(ctx, instanceUUID.(string))
 	if err != nil {
 		logger.Errorf("Failed to get instance by UUID %s: %v", instanceUUID, err)
-		return nil, fmt.Errorf("failed to get instance: %w", err)
+		return nil, err
 	}
 
 	// 调用 service 层
@@ -125,12 +124,12 @@ func (a *InterfaceAdapter) Get(c *gin.Context, id string) (interface{}, error) {
 	ctx := c.Request.Context()
 	iface, err := a.service.GetInterfaceByUUID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get interface: %w", err)
+		return nil, err
 	}
 
 	instance, err := a.instanceService.Get(ctx, iface.Instance)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get instance: %w", err)
+		return nil, err
 	}
 
 	return a.getInterfaceResponse(ctx, instance, iface)

@@ -15,7 +15,6 @@ package adapters
 
 import (
 	"context"
-	"fmt"
 	"web/src/model"
 
 	"github.com/gin-gonic/gin"
@@ -68,13 +67,13 @@ type BaseAdapter struct{}
 // ValidateRequest 验证请求参数
 func (b *BaseAdapter) ValidateRequest(req *ResourceQueryRequest) error {
 	if req.ResourceType == "" {
-		return fmt.Errorf("resource_type is required")
+		return common.NewCLError(common.ErrInvalidParameter, "resource_type is required", nil)
 	}
 	if req.Limit < 0 {
-		return fmt.Errorf("limit must be non-negative")
+		return common.NewCLError(common.ErrInvalidParameter, "limit must be non-negative", nil)
 	}
 	if req.Offset < 0 {
-		return fmt.Errorf("offset must be non-negative")
+		return common.NewCLError(common.ErrInvalidParameter, "offset must be non-negative", nil)
 	}
 	return nil
 }
@@ -84,7 +83,7 @@ func (b *BaseAdapter) CheckPermission(ctx context.Context) error {
 	memberShip := common.GetMemberShip(ctx)
 	permit := memberShip.CheckPermission(model.Reader)
 	if !permit {
-		return fmt.Errorf("not authorized for this operation")
+		return common.NewCLError(common.ErrPermissionDenied, "not authorized for this operation", nil)
 	}
 	return nil
 }

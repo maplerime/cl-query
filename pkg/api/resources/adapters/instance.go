@@ -194,7 +194,7 @@ func (a *InstanceAdapter) List(c *gin.Context, req *ResourceQueryRequest) (inter
 	query, err := a.MakeQuery(c, req.Filters)
 	if err != nil {
 		logger.Errorf("Failed to process filters: %v", err)
-		return nil, fmt.Errorf("failed to process filters: %w", err)
+		return nil, err
 	}
 
 	// 调用 service 层
@@ -311,11 +311,11 @@ func (a *InstanceAdapter) getInstanceResponse(ctx context.Context, instance *mod
 		}
 	}
 	instanceResp.Volumes = volumes
-	
+
 	// 优化hyper查询：使用批量查询结果或单次查询
 	var hyper *model.Hyper
 	var hyperErr error
-	
+
 	if len(hypersMap) > 0 && hypersMap[0] != nil {
 		// 使用批量查询的结果
 		if h, exists := hypersMap[0][instance.Hyper]; exists {
@@ -327,7 +327,7 @@ func (a *InstanceAdapter) getInstanceResponse(ctx context.Context, instance *mod
 		// 使用原有的单次查询方式
 		hyper, hyperErr = hyperAdmin.GetHyperByHostid(ctx, instance.Hyper)
 	}
-	
+
 	if hyperErr == nil {
 		instanceResp.Hypervisor = &BaseReference{
 			ID:   strconv.Itoa(int(instance.Hyper)),

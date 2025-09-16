@@ -9,7 +9,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"web/src/model"
 
 	. "github.com/maplerime/cl-query/pkg/common"
@@ -24,13 +23,13 @@ func (a *ImageAdmin) GetImageByUUID(ctx context.Context, uuID string) (image *mo
 	err = db.Where("uuid = ?", uuID).Take(image).Error
 	if err != nil {
 		logger.Error("Failed to query image, %v", err)
-		return
+		return nil, NewCLError(ErrImageNotFound, "Image not found", err)
 	}
 	memberShip := GetMemberShip(ctx)
 	permit := memberShip.CheckPermission(model.Reader)
 	if !permit {
 		logger.Error("Not authorized to get image")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to get image", nil)
 		return
 	}
 	return
@@ -42,13 +41,13 @@ func (a *ImageAdmin) GetImageByName(ctx context.Context, name string) (image *mo
 	err = db.Where("name = ?", name).Take(image).Error
 	if err != nil {
 		logger.Error("Failed to query image, %v", err)
-		return
+		return nil, NewCLError(ErrImageNotFound, "Image not found", err)
 	}
 	memberShip := GetMemberShip(ctx)
 	permit := memberShip.CheckPermission(model.Reader)
 	if !permit {
 		logger.Error("Not authorized to get image")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to get image", nil)
 		return
 	}
 	return
@@ -56,7 +55,7 @@ func (a *ImageAdmin) GetImageByName(ctx context.Context, name string) (image *mo
 
 func (a *ImageAdmin) Get(ctx context.Context, id int64) (image *model.Image, err error) {
 	if id <= 0 {
-		err = fmt.Errorf("Invalid image ID: %d", id)
+		err = NewCLError(ErrInvalidParameter, "Invalid image ID", nil)
 		logger.Error(err)
 		return
 	}
@@ -65,13 +64,13 @@ func (a *ImageAdmin) Get(ctx context.Context, id int64) (image *model.Image, err
 	err = db.Take(image).Error
 	if err != nil {
 		logger.Error("DB failed to query image, %v", err)
-		return
+		return nil, NewCLError(ErrImageNotFound, "Image not found", err)
 	}
 	memberShip := GetMemberShip(ctx)
 	permit := memberShip.CheckPermission(model.Reader)
 	if !permit {
 		logger.Error("Not authorized to get image")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to get image", nil)
 		return
 	}
 	return
@@ -79,7 +78,7 @@ func (a *ImageAdmin) Get(ctx context.Context, id int64) (image *model.Image, err
 
 func (a *ImageAdmin) GetImage(ctx context.Context, reference *BaseReference) (image *model.Image, err error) {
 	if reference == nil || (reference.ID == "" && reference.Name == "") {
-		err = fmt.Errorf("Image base reference must be provided with either uuid or name")
+		err = NewCLError(ErrInvalidParameter, "Image base reference must be provided with either uuid or name", nil)
 		return
 	}
 	if reference.ID != "" {
@@ -105,11 +104,11 @@ func (a *ImageAdmin) List(ctx context.Context, offset, limit int64, order, query
 
 	images = []*model.Image{}
 	if err = db.Model(&model.Image{}).Where(query).Count(&total).Error; err != nil {
-		return
+		return 0, nil, NewCLError(ErrSQLSyntaxError, "Failed to count images", err)
 	}
 	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
 	if err = db.Where(query).Find(&images).Error; err != nil {
-		return
+		return 0, nil, NewCLError(ErrSQLSyntaxError, "Failed to find images", err)
 	}
 
 	return

@@ -71,11 +71,11 @@ func (a *InstanceAdmin) GetHyperGroup(ctx context.Context, zoneID int64, skipHyp
 	where := fmt.Sprintf("zone_id = %d and status = 1 and hostid <> %d", zoneID, skipHyper)
 	if err = db.Where(where).Find(&hypers).Error; err != nil {
 		logger.Error("Hypers query failed", err)
-		return
+		return "", NewCLError(ErrSQLSyntaxError, "Failed to query hypervisors", err)
 	}
 	if len(hypers) == 0 {
 		logger.Error("No qualified hypervisor")
-		return
+		return "", NewCLError(ErrNoQualifiedHypervisor, "No qualified hypervisor found", nil)
 	}
 	hyperGroup = fmt.Sprintf("group-zone-%d", zoneID)
 	for i, h := range hypers {
@@ -90,7 +90,7 @@ func (a *InstanceAdmin) GetHyperGroup(ctx context.Context, zoneID int64, skipHyp
 
 func (a *InstanceAdmin) Get(ctx context.Context, id int64) (instance *model.Instance, err error) {
 	if id <= 0 {
-		err = fmt.Errorf("Invalid instance ID: %d", id)
+		err = NewCLError(ErrInvalidParameter, "Invalid instance ID", nil)
 		logger.Error(err)
 		return
 	}
@@ -100,23 +100,23 @@ func (a *InstanceAdmin) Get(ctx context.Context, id int64) (instance *model.Inst
 	instance = &model.Instance{Model: model.Model{ID: id}}
 	if err = db.Preload("Volumes").Preload("Image").Preload("Zone").Preload("Flavor").Preload("Keys").Where(where).Take(instance).Error; err != nil {
 		logger.Errorf("Failed to query instance, %v", err)
-		return
+		return nil, NewCLError(ErrInstanceNotFound, "Instance not found", err)
 	}
 
 	if err = db.Preload("Group").Preload("Subnet").Where("instance_id = ?", instance.ID).Order("updated_at").Find(&instance.FloatingIps).Error; err != nil {
 		logger.Errorf("Failed to query floating ip(s), %v", err)
-		return
+		return nil, NewCLError(ErrSQLSyntaxError, "Failed to query floating ip(s) for instance", err)
 	}
 	if err = db.Preload("SiteSubnets").Preload("SiteSubnets.Group").Preload("SecurityGroups").Preload("Address").Preload("Address.Subnet").Preload("SecondAddresses", func(db *gorm.DB) *gorm.DB {
 		return db.Order("addresses.updated_at")
 	}).Preload("SecondAddresses.Subnet").Where("instance = ?", instance.ID).Find(&instance.Interfaces).Error; err != nil {
 		logger.Errorf("Failed to query interfaces %v", err)
-		return
+		return nil, NewCLError(ErrSQLSyntaxError, "Failed to query interfaces for instance", err)
 	}
 	permit := memberShip.ValidateOwner(model.Reader, instance.Owner)
 	if !permit {
 		logger.Error("Not authorized to read the instance")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to read the instance", nil)
 		return
 	}
 	permit = memberShip.CheckPermission(model.Admin)
@@ -124,7 +124,7 @@ func (a *InstanceAdmin) Get(ctx context.Context, id int64) (instance *model.Inst
 		instance.OwnerInfo = &model.Organization{Model: model.Model{ID: instance.Owner}}
 		if err = db.Take(instance.OwnerInfo).Error; err != nil {
 			logger.Error("Failed to query owner info", err)
-			return
+			return nil, NewCLError(ErrOwnerNotFound, "Failed to query owner info for instance", err)
 		}
 	}
 
@@ -133,7 +133,7 @@ func (a *InstanceAdmin) Get(ctx context.Context, id int64) (instance *model.Inst
 
 func (a *InstanceAdmin) Fetch(ctx context.Context, id int64) (instance *model.Instance, err error) {
 	if id <= 0 {
-		err = fmt.Errorf("Invalid instance ID: %d", id)
+		err = NewCLError(ErrInvalidParameter, "Invalid instance ID", nil)
 		logger.Error(err)
 		return
 	}
@@ -143,13 +143,13 @@ func (a *InstanceAdmin) Fetch(ctx context.Context, id int64) (instance *model.In
 	instance = &model.Instance{Model: model.Model{ID: id}}
 	if err = db.Where(where).Take(instance).Error; err != nil {
 		logger.Errorf("Failed to query instance, %v", err)
-		return
+		return nil, NewCLError(ErrInstanceNotFound, "Instance not found", err)
 	}
 
 	permit := memberShip.ValidateOwner(model.Reader, instance.Owner)
 	if !permit {
 		logger.Error("Not authorized to read the instance")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to read the instance", nil)
 		return
 	}
 	permit = memberShip.CheckPermission(model.Admin)
@@ -157,7 +157,7 @@ func (a *InstanceAdmin) Fetch(ctx context.Context, id int64) (instance *model.In
 		instance.OwnerInfo = &model.Organization{Model: model.Model{ID: instance.Owner}}
 		if err = db.Take(instance.OwnerInfo).Error; err != nil {
 			logger.Error("Failed to query owner info", err)
-			return
+			return nil, NewCLError(ErrOwnerNotFound, "Failed to query owner info for instance", err)
 		}
 	}
 
@@ -171,30 +171,30 @@ func (a *InstanceAdmin) GetInstanceByUUID(ctx context.Context, uuID string) (ins
 	instance = &model.Instance{}
 	if err = db.Preload("Volumes").Preload("Image").Preload("Zone").Preload("Flavor").Preload("Keys").Where(where).Where("uuid = ?", uuID).Take(instance).Error; err != nil {
 		logger.Errorf("Failed to query instance, %v", err)
-		return
+		return nil, NewCLError(ErrInstanceNotFound, "Instance not found", err)
 	}
 
 	if err = db.Preload("Group").Preload("Subnet").Where("instance_id = ?", instance.ID).Order("updated_at").Find(&instance.FloatingIps).Error; err != nil {
 		logger.Errorf("Failed to query floating ip(s), %v", err)
-		return
+		return nil, NewCLError(ErrSQLSyntaxError, "Failed to query floating ip(s) for instance", err)
 	}
 	if err = db.Preload("SiteSubnets").Preload("SiteSubnets.Group").Preload("SecurityGroups").Preload("Address").Preload("Address.Subnet").Preload("SecondAddresses", func(db *gorm.DB) *gorm.DB {
 		return db.Order("addresses.updated_at")
 	}).Preload("SecondAddresses.Subnet").Where("instance = ?", instance.ID).Find(&instance.Interfaces).Error; err != nil {
 		logger.Errorf("Failed to query interfaces %v", err)
-		return
+		return nil, NewCLError(ErrSQLSyntaxError, "Failed to query interfaces for instance", err)
 	}
 	if instance.RouterID > 0 {
 		instance.Router = &model.Router{Model: model.Model{ID: instance.RouterID}}
 		if err = db.Take(instance.Router).Error; err != nil {
-			logger.Errorf("Failed to query floating ip(s), %v", err)
-			return
+			logger.Errorf("Failed to query router, %v", err)
+			return nil, NewCLError(ErrRouterNotFound, "Failed to query router for instance", err)
 		}
 	}
 	permit := memberShip.ValidateOwner(model.Reader, instance.Owner)
 	if !permit {
 		logger.Error("Not authorized to read the instance")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized to read the instance", nil)
 		return
 	}
 	return
@@ -205,7 +205,7 @@ func (a *InstanceAdmin) List(ctx context.Context, offset, limit int64, order, qu
 	permit := memberShip.CheckPermission(model.Reader)
 	if !permit {
 		logger.Error("Not authorized for this operation")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized for this operation", nil)
 		return
 	}
 	db := DB()
@@ -221,11 +221,13 @@ func (a *InstanceAdmin) List(ctx context.Context, offset, limit int64, order, qu
 	where := memberShip.GetWhere()
 	instances = []*model.Instance{}
 	if err = db.Model(&model.Instance{}).Where(where).Where(query).Count(&total).Error; err != nil {
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count instance(s)", err)
 		return
 	}
 	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
 	if err = db.Preload("Volumes").Preload("Image").Preload("Zone").Preload("Flavor").Preload("Keys").Where(where).Where(query).Find(&instances).Error; err != nil {
 		logger.Errorf("Failed to query instance(s), %v", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to query instance(s)", err)
 		return
 	}
 	db = db.Offset(0).Limit(-1)
@@ -234,11 +236,13 @@ func (a *InstanceAdmin) List(ctx context.Context, offset, limit int64, order, qu
 			return db.Order("addresses.updated_at")
 		}).Preload("SecondAddresses.Subnet").Where("instance = ?", instance.ID).Find(&instance.Interfaces).Error; err != nil {
 			logger.Errorf("Failed to query interfaces %v", err)
+			err = NewCLError(ErrSQLSyntaxError, "Failed to query interfaces", err)
 			return
 		}
 
 		if err = db.Preload("Group").Preload("Subnet").Order("updated_at").Where("instance_id = ?", instance.ID).Find(&instance.FloatingIps).Error; err != nil {
 			logger.Errorf("Failed to query floating ip(s), %v", err)
+			err = NewCLError(ErrSQLSyntaxError, "Failed to query floating ip(s) for instance", err)
 			return
 		}
 
@@ -246,6 +250,7 @@ func (a *InstanceAdmin) List(ctx context.Context, offset, limit int64, order, qu
 			instance.Router = &model.Router{Model: model.Model{ID: instance.RouterID}}
 			if err = db.Take(instance.Router).Error; err != nil {
 				logger.Errorf("Failed to query floating ip(s), %v", err)
+				err = NewCLError(ErrRouterNotFound, "Failed to query router for instance", err)
 				return
 			}
 		}
@@ -254,6 +259,7 @@ func (a *InstanceAdmin) List(ctx context.Context, offset, limit int64, order, qu
 			instance.OwnerInfo = &model.Organization{Model: model.Model{ID: instance.Owner}}
 			if err = db.Take(instance.OwnerInfo).Error; err != nil {
 				logger.Error("Failed to query owner info", err)
+				err = NewCLError(ErrOwnerNotFound, "Failed to query owner info for instance", err)
 				return
 			}
 		}
@@ -267,7 +273,7 @@ func (a *InstanceAdmin) BaseList(ctx context.Context, offset, limit int64, order
 	permit := memberShip.CheckPermission(model.Reader)
 	if !permit {
 		logger.Error("Not authorized for this operation")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized for this operation", nil)
 		return
 	}
 	db := DB()
@@ -283,11 +289,13 @@ func (a *InstanceAdmin) BaseList(ctx context.Context, offset, limit int64, order
 	where := memberShip.GetWhere()
 	instances = []*model.Instance{}
 	if err = db.Model(&model.Instance{}).Where(where).Where(query).Count(&total).Error; err != nil {
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count instance(s)", err)
 		return
 	}
 	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
 	if err = db.Where(where).Where(query).Find(&instances).Error; err != nil {
 		logger.Errorf("Failed to query instance(s), %v", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to query instance(s)", err)
 		return
 	}
 	return
@@ -298,7 +306,7 @@ func (a *InstanceAdmin) GetInstanceCount(ctx context.Context, query string) (cou
 	permit := memberShip.CheckPermission(model.Reader)
 	if !permit {
 		logger.Error("Not authorized for this operation")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized for this operation", nil)
 		return
 	}
 
@@ -307,6 +315,7 @@ func (a *InstanceAdmin) GetInstanceCount(ctx context.Context, query string) (cou
 
 	if err = db.Model(&model.Instance{}).Where(where).Where(query).Count(&count).Error; err != nil {
 		logger.Errorf("Failed to count instances, %v", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count instance(s)", err)
 		return
 	}
 
@@ -328,7 +337,7 @@ func (a *InstanceAdmin) ListWithJoins(ctx context.Context, offset, limit int64, 
 	permit := memberShip.CheckPermission(model.Reader)
 	if !permit {
 		logger.Error("Not authorized for this operation")
-		err = fmt.Errorf("Not authorized")
+		err = NewCLError(ErrPermissionDenied, "Not authorized for this operation", nil)
 		return
 	}
 
@@ -366,6 +375,7 @@ func (a *InstanceAdmin) ListWithJoins(ctx context.Context, offset, limit int64, 
 	// 计数
 	if err = joinDB.Model(&model.Instance{}).Where(where).Where(query).Select("COUNT(DISTINCT instances.id)").Count(&total).Error; err != nil {
 		logger.Errorf("Failed to count instances with joins: %v", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count instance(s)", err)
 		return
 	}
 
@@ -398,6 +408,7 @@ func (a *InstanceAdmin) ListWithJoins(ctx context.Context, offset, limit int64, 
 		Where(query).
 		Group("instances.id").Find(&instances).Error; err != nil {
 		logger.Errorf("Failed to query instances with joins: %v", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to query instance(s)", err)
 		return
 	}
 
@@ -428,6 +439,7 @@ func (a *InstanceAdmin) batchLoadOwnerInfo(ctx context.Context, instances []*mod
 
 	var orgs []*model.Organization
 	if err := DB().Where("id IN (?)", orgIDs).Find(&orgs).Error; err != nil {
+		err = NewCLError(ErrOwnerNotFound, "Failed to query owner info for instance", err)
 		return err
 	}
 

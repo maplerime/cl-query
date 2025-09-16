@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"web/src/model"
 
 	"github.com/maplerime/cl-query/pkg/dbs"
@@ -21,7 +20,7 @@ func (a *DictionaryAdmin) Get(ctx context.Context, id int64) (*model.Dictionary,
 	if err := db.Where(where).First(dictionary, id).Error; err != nil {
 		logger.Debugf("DictionaryAdmin.Get: failed to get dictionary, id=%d, err=%v", id, err)
 		logger.Debugf("Exit DictionaryAdmin.Get with error")
-		return nil, fmt.Errorf("failed to get dictionary: %w", err)
+		return nil, NewCLError(ErrDictionaryRecordsNotFound, "Dictionary not found", err)
 	}
 	logger.Debugf("DictionaryAdmin.Get: success, uuid=%s, dictionary=%+v", dictionary.UUID, dictionary)
 	return dictionary, nil
@@ -44,12 +43,12 @@ func (a *DictionaryAdmin) List(ctx context.Context, offset, limit int64, order s
 	if err = db.Model(&model.Dictionary{}).Where(where).Where(query).Count(&total).Error; err != nil {
 		logger.Debugf("DictionaryAdmin.List: count error, err=%v", err)
 		logger.Debugf("Exit DictionaryAdmin.List with error")
-		return
+		return 0, nil, NewCLError(ErrSQLSyntaxError, "Failed to count dictionaries", err)
 	}
 	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
 	if err = db.Where(where).Where(query).Find(&dictionaries).Error; err != nil {
 		logger.Errorf("DictionaryAdmin.List: find error, err=%v", err)
-		return
+		return 0, nil, NewCLError(ErrSQLSyntaxError, "Failed to find dictionaries", err)
 	}
 	logger.Debugf("DictionaryAdmin.List: success, total=%d, count=%d", total, len(dictionaries))
 	return
@@ -64,7 +63,7 @@ func (a *DictionaryAdmin) GetDictionaryByUUID(ctx context.Context, uuID string) 
 	err = db.Where(where).Where("uuid = ?", uuID).Take(dictionaries).Error
 	if err != nil {
 		logger.Errorf("DictionaryAdmin.GetDictionaryByUUID: failed, uuID=%s, err=%v", uuID, err)
-		return
+		return nil, NewCLError(ErrDictionaryRecordsNotFound, "Dictionary records not found", err)
 	}
 	logger.Debugf("DictionaryAdmin.GetDictionaryByUUID: success, dictionary=%+v", dictionaries)
 	return
@@ -76,7 +75,7 @@ func (a *DictionaryAdmin) Find(ctx context.Context, category, value string) (dic
 	err = db.Where("category = ? AND value = ?", category, value).Take(dictionary).Error
 	if err != nil {
 		logger.Error("DictionaryAdmin.Find: failed to get dictionary", err)
-		return
+		return nil, NewCLError(ErrDictionaryRecordsNotFound, "Dictionary records not found", err)
 	}
 	return
 }
