@@ -76,9 +76,13 @@ func (a *SecurityGroupAdapter) MakeQuery(c *gin.Context, filtersMap map[string]i
 		logger.Debugf("Added name filter: %s", filters.Name)
 	}
 
-	if len(filters.UUIDs) > 0 {
-		conditions = append(conditions, fmt.Sprintf("uuid IN ('%s')", strings.Join(filters.UUIDs, "','")))
-		logger.Debugf("Added UUIDs filter: %v", filters.UUIDs)
+	if filters.UUIDs != nil {
+		if len(filters.UUIDs) > 0 {
+			conditions = append(conditions, fmt.Sprintf("uuid IN ('%s')", strings.Join(filters.UUIDs, "','")))
+			logger.Debugf("Added UUIDs filter: %v", filters.UUIDs)
+		} else {
+			conditions = append(conditions, "1=0")
+		}
 	}
 
 	// 处理 vpc_id 过滤器 - 通过 vpc_id 获取递增 ID

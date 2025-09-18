@@ -114,9 +114,13 @@ func (a *VolumeAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interfac
 	}
 
 	// UUIDs 查询
-	if len(filters.UUIDs) > 0 {
-		conditions = append(conditions, fmt.Sprintf("uuid IN ('%s')", strings.Join(filters.UUIDs, "','")))
-		logger.Debugf("Added UUIDs filter: %v", filters.UUIDs)
+	if filters.UUIDs != nil {
+		if len(filters.UUIDs) > 0 {
+			conditions = append(conditions, fmt.Sprintf("uuid IN ('%s')", strings.Join(filters.UUIDs, "','")))
+			logger.Debugf("Added UUIDs filter: %v", filters.UUIDs)
+		} else {
+			conditions = append(conditions, "1=0")
+		}
 	}
 
 	// 卷类型查询

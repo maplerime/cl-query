@@ -105,9 +105,13 @@ func (a *SubnetAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interfac
 	}
 
 	// UUIDS
-	if len(filters.UUIDs) > 0 {
-		conditions = append(conditions, fmt.Sprintf("subnets.uuid IN ('%s')", strings.Join(filters.UUIDs, "','")))
-		logger.Debugf("Added UUIDs filter: %v", filters.UUIDs)
+	if filters.UUIDs != nil {
+		if len(filters.UUIDs) > 0 {
+			conditions = append(conditions, fmt.Sprintf("subnets.uuid IN ('%s')", strings.Join(filters.UUIDs, "','")))
+			logger.Debugf("Added UUIDs filter: %v", filters.UUIDs)
+		} else {
+			conditions = append(conditions, "1=0")
+		}
 	}
 
 	// IP组
