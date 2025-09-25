@@ -35,14 +35,11 @@ func NewAdapterFactory() *AdapterFactory {
 	factory.Register("volume", func() adapters.ResourceAdapter {
 		return adapters.NewVolumeAdapter()
 	})
-	factory.Register("secgroup", func() adapters.ResourceAdapter {
+	factory.Register("security_group", func() adapters.ResourceAdapter {
 		return adapters.NewSecurityGroupAdapter()
 	})
-	factory.Register("secrule", func() adapters.ResourceAdapter {
+	factory.Register("security_rule", func() adapters.ResourceAdapter {
 		return adapters.NewSecruleAdapter()
-	})
-	factory.Register("hyper", func() adapters.ResourceAdapter {
-		return adapters.NewHyperAdapter()
 	})
 	factory.Register("interface", func() adapters.ResourceAdapter {
 		return adapters.NewInterfaceAdapter()
@@ -53,20 +50,23 @@ func NewAdapterFactory() *AdapterFactory {
 	factory.Register("vpc", func() adapters.ResourceAdapter {
 		return adapters.NewVPCAdapter()
 	})
-	factory.Register("ipgroup", func() adapters.ResourceAdapter {
+	factory.Register("ip_group", func() adapters.ResourceAdapter {
 		return adapters.NewIpGroupAdapter()
 	})
-	factory.Register("floatingip", func() adapters.ResourceAdapter {
+	factory.Register("floating_ip", func() adapters.ResourceAdapter {
 		return adapters.NewFloatingIPAdapter()
 	})
 	factory.Register("subnet", func() adapters.ResourceAdapter {
 		return adapters.NewSubnetAdapter()
 	})
-	factory.Register("ipaddress", func() adapters.ResourceAdapter {
+	factory.Register("ip_address", func() adapters.ResourceAdapter {
 		return adapters.NewAddressAdapter()
 	})
 	factory.Register("dictionary", func() adapters.ResourceAdapter {
 		return adapters.NewDictionaryAdapter()
+	})
+	factory.Register("hyper", func() adapters.ResourceAdapter {
+		return adapters.NewHyperAdapter()
 	})
 	factory.Register("zone", func() adapters.ResourceAdapter {
 		return adapters.NewZoneAdapter()
