@@ -58,7 +58,7 @@ func NewIPTreeAPI() *IPTreeAPI {
 // GetInstanceIPTree 获取实例的IP树
 // @Summary 获取实例IP树结构
 // @Description 获取指定实例的IP树结构，包含VPC、内网IP、浮动IP和站群IP等信息
-// @Tags 实例
+// @Tags Instance
 // @Produce json
 // @Param id path string true "实例ID"
 // @Success 200 {object} IPTreeResponse "IP树结构"

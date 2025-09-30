@@ -99,3 +99,31 @@ func (a *VolumeAdmin) ListVolume(ctx context.Context, offset, limit int64, order
 
 	return
 }
+
+func (a *VolumeAdmin) Count(ctx context.Context) (count int64, err error) {
+	memberShip := GetMemberShip(ctx)
+	ctx, db := GetContextDB(ctx)
+	where := memberShip.GetWhere()
+
+	if err = db.Model(&model.Volume{}).Where(where).Count(&count).Error; err != nil {
+		logger.Error("Failed to count volumes", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count volumes", err)
+	}
+	return
+}
+
+func (a *VolumeAdmin) SumSize(ctx context.Context) (total int64, err error) {
+	memberShip := GetMemberShip(ctx)
+	ctx, db := GetContextDB(ctx)
+	where := memberShip.GetWhere()
+
+	var result struct {
+		Total int64
+	}
+	if err = db.Model(&model.Volume{}).Select("SUM(size) as total").Where(where).Scan(&result).Error; err != nil {
+		logger.Error("Failed to sum volume size", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to sum volume size", err)
+		return
+	}
+	return result.Total, nil
+}

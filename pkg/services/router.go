@@ -148,29 +148,14 @@ func (a *RouterAdmin) List(ctx context.Context, offset, limit int64, order, quer
 	return
 }
 
-func (a *SubnetAdmin) AddressStatistics(ctx context.Context, subnet *model.Subnet) (total, allocated, reserved, idle int64, err error) {
+func (a *RouterAdmin) Count(ctx context.Context) (count int64, err error) {
+	memberShip := GetMemberShip(ctx)
 	ctx, db := GetContextDB(ctx)
-	query := db.Model(&model.Address{}).
-		Select(`
-			COUNT(*) as total,
-			SUM(CASE WHEN allocated = 't' AND reserved = 'f' THEN 1 ELSE 0 END) as allocated,
-			SUM(CASE WHEN reserved = 't' AND reserved = 't' THEN 1 ELSE 0 END) as reserved,
-			SUM(CASE WHEN allocated = 'f' AND reserved = 'f' THEN 1 ELSE 0 END) as idle
-		`).
-		Where("subnet_id = ? AND address != ?", subnet.ID, subnet.Gateway)
+	where := memberShip.GetWhere()
 
-	var result struct {
-		Total     int64
-		Allocated int64
-		Reserved  int64
-		Idle      int64
+	if err = db.Model(&model.Router{}).Where(where).Count(&count).Error; err != nil {
+		logger.Error("Failed to count routers", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count routers", err)
 	}
-
-	if err = query.Scan(&result).Error; err != nil {
-		logger.Error("Failed to count addresses for subnet", err)
-		err = NewCLError(ErrSQLSyntaxError, "Failed to count addresses for subnet", err)
-		return
-	}
-
-	return result.Total, result.Allocated, result.Reserved, result.Idle, nil
+	return
 }

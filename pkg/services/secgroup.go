@@ -207,3 +207,15 @@ func (a *SecgroupAdmin) List(ctx context.Context, offset, limit int64, order, qu
 
 	return
 }
+
+func (a *SecgroupAdmin) Count(ctx context.Context) (count int64, err error) {
+	memberShip := GetMemberShip(ctx)
+	ctx, db := GetContextDB(ctx)
+	where := memberShip.GetWhere()
+
+	if err = db.Model(&model.SecurityGroup{}).Where(where).Count(&count).Error; err != nil {
+		logger.Error("Failed to count security groups", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count security groups", err)
+	}
+	return
+}

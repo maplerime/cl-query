@@ -111,15 +111,15 @@ func _() {
 	_ = x[ErrFIPInUse-131209]
 	_ = x[ErrDummyFIPCreateFailed-131210]
 	_ = x[ErrUpdateGroupIDFailed-131211]
-	_ = x[ErrRouterNotFound-131306]
-	_ = x[ErrRouterCreateFailed-131307]
-	_ = x[ErrRouterUpdateFailed-131308]
-	_ = x[ErrRouterUpdateDefaultSGFailed-131309]
-	_ = x[ErrRouterDeleteFailed-131310]
-	_ = x[ErrRouterInUse-131311]
-	_ = x[ErrRouterHasFloatingIPs-131312]
-	_ = x[ErrRouterHasSubnets-131313]
-	_ = x[ErrRouterHasPortmaps-131314]
+	_ = x[ErrRouterNotFound-131301]
+	_ = x[ErrRouterCreateFailed-131302]
+	_ = x[ErrRouterUpdateFailed-131303]
+	_ = x[ErrRouterUpdateDefaultSGFailed-131304]
+	_ = x[ErrRouterDeleteFailed-131305]
+	_ = x[ErrRouterInUse-131306]
+	_ = x[ErrRouterHasFloatingIPs-131307]
+	_ = x[ErrRouterHasSubnets-131308]
+	_ = x[ErrRouterHasPortmaps-131309]
 	_ = x[ErrIpGroupNotFound-131401]
 	_ = x[ErrIpGroupCreateFailed-131402]
 	_ = x[ErrIpGroupUpdateFailed-131403]
@@ -271,15 +271,15 @@ var _ErrCode_map = map[ErrCode]string{
 	131209: _ErrCode_name[1628:1636],
 	131210: _ErrCode_name[1636:1656],
 	131211: _ErrCode_name[1656:1675],
-	131306: _ErrCode_name[1675:1689],
-	131307: _ErrCode_name[1689:1707],
-	131308: _ErrCode_name[1707:1725],
-	131309: _ErrCode_name[1725:1752],
-	131310: _ErrCode_name[1752:1770],
-	131311: _ErrCode_name[1770:1781],
-	131312: _ErrCode_name[1781:1801],
-	131313: _ErrCode_name[1801:1817],
-	131314: _ErrCode_name[1817:1834],
+	131301: _ErrCode_name[1675:1689],
+	131302: _ErrCode_name[1689:1707],
+	131303: _ErrCode_name[1707:1725],
+	131304: _ErrCode_name[1725:1752],
+	131305: _ErrCode_name[1752:1770],
+	131306: _ErrCode_name[1770:1781],
+	131307: _ErrCode_name[1781:1801],
+	131308: _ErrCode_name[1801:1817],
+	131309: _ErrCode_name[1817:1834],
 	131401: _ErrCode_name[1834:1849],
 	131402: _ErrCode_name[1849:1868],
 	131403: _ErrCode_name[1868:1887],

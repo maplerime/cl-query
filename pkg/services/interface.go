@@ -137,3 +137,15 @@ func (a *InterfaceAdmin) List(ctx context.Context, offset, limit int64, order st
 
 	return
 }
+
+func (a *InterfaceAdmin) Count(ctx context.Context) (count int64, err error) {
+	memberShip := GetMemberShip(ctx)
+	ctx, db := GetContextDB(ctx)
+	where := memberShip.GetWhere()
+	
+	if err = db.Model(&model.Interface{}).Where(where).Count(&count).Error; err != nil {
+		logger.Error("Failed to count interfaces", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count interfaces", err)
+	}
+	return
+}

@@ -80,6 +80,9 @@ docs-setup: setup
 	go get github.com/swaggo/gin-swagger
 	go get github.com/swaggo/files
 
+error_codes_string:
+	go generate pkg/common/error_codes.go
+
 query-docs: docs-setup
 	swag init -g router.go -dir ./cmd/querysvc,./pkg/api/resources,./pkg/common -o ./docs/
 

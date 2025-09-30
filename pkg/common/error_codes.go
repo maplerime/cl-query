@@ -147,15 +147,15 @@ const (
 	ErrUpdateGroupIDFailed       ErrCode = 131211
 
 	// VPC/Router related errors (1313xx)
-	ErrRouterNotFound              ErrCode = 131306
-	ErrRouterCreateFailed          ErrCode = 131307
-	ErrRouterUpdateFailed          ErrCode = 131308
-	ErrRouterUpdateDefaultSGFailed ErrCode = 131309
-	ErrRouterDeleteFailed          ErrCode = 131310
-	ErrRouterInUse                 ErrCode = 131311
-	ErrRouterHasFloatingIPs        ErrCode = 131312
-	ErrRouterHasSubnets            ErrCode = 131313
-	ErrRouterHasPortmaps           ErrCode = 131314
+	ErrRouterNotFound              ErrCode = 131301
+	ErrRouterCreateFailed          ErrCode = 131302
+	ErrRouterUpdateFailed          ErrCode = 131303
+	ErrRouterUpdateDefaultSGFailed ErrCode = 131304
+	ErrRouterDeleteFailed          ErrCode = 131305
+	ErrRouterInUse                 ErrCode = 131306
+	ErrRouterHasFloatingIPs        ErrCode = 131307
+	ErrRouterHasSubnets            ErrCode = 131308
+	ErrRouterHasPortmaps           ErrCode = 131309
 
 	// IP Group related errors (1314xx)
 	ErrIpGroupNotFound     ErrCode = 131401

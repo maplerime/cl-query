@@ -30,7 +30,7 @@ var logger = logging.MustGetLogger("resource-controller")
 // QueryResources 统一资源查询接口
 // @Summary 统一资源查询
 // @Description 通过资源类型查询不同类型的资源列表
-// @Tags 资源查询
+// @Tags Resource
 // @Accept json
 // @Produce json
 // @Param request body adapters.ResourceQueryRequest true "查询请求"
@@ -95,7 +95,7 @@ func QueryResources(c *gin.Context) {
 // GetResource 获取单个资源详情
 // @Summary 获取单个资源详情
 // @Description 通过资源类型和 ID 获取单个资源的详细信息
-// @Tags 资源查询
+// @Tags Resource
 // @Produce json
 // @Param resource_type path string true "资源类型" Enums(instance,secgroup,secrule,subnet,volume,floatingip)
 // @Param id path string true "资源ID（UUID）"

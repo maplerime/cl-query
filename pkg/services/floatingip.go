@@ -255,3 +255,15 @@ func (a *FloatingIpAdmin) GetFloatingIpByAddress(ctx context.Context, ipAddress 
 	}
 	return
 }
+
+func (a *FloatingIpAdmin) Count(ctx context.Context) (count int64, err error) {
+	memberShip := GetMemberShip(ctx)
+	ctx, db := GetContextDB(ctx)
+	where := memberShip.GetWhere()
+	
+	if err = db.Model(&model.FloatingIp{}).Where(where).Count(&count).Error; err != nil {
+		logger.Error("Failed to count floating IPs", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count floating IPs", err)
+	}
+	return
+}

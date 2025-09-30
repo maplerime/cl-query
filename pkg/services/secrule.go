@@ -94,3 +94,15 @@ func (a *SecruleAdmin) GetSecruleByUUID(ctx context.Context, uuID string) (secru
 	}
 	return
 }
+
+func (a *SecruleAdmin) Count(ctx context.Context) (count int64, err error) {
+	memberShip := GetMemberShip(ctx)
+	ctx, db := GetContextDB(ctx)
+	where := memberShip.GetWhere()
+
+	if err = db.Model(&model.SecurityRule{}).Where(where).Count(&count).Error; err != nil {
+		logger.Error("Failed to count security rules", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count security rules", err)
+	}
+	return
+}

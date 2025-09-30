@@ -458,3 +458,47 @@ func (a *InstanceAdmin) batchLoadOwnerInfo(ctx context.Context, instances []*mod
 
 	return nil
 }
+
+func (a *InstanceAdmin) Count(ctx context.Context) (count int64, err error) {
+	memberShip := GetMemberShip(ctx)
+	ctx, db := GetContextDB(ctx)
+	where := memberShip.GetWhere()
+
+	if err = db.Model(&model.Instance{}).Where(where).Count(&count).Error; err != nil {
+		logger.Error("Failed to count instances", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count instances", err)
+	}
+	return
+}
+
+func (a *InstanceAdmin) SumCPU(ctx context.Context) (total int64, err error) {
+	memberShip := GetMemberShip(ctx)
+	ctx, db := GetContextDB(ctx)
+	where := memberShip.GetWhere()
+
+	var result struct {
+		Total int64
+	}
+	if err = db.Model(&model.Instance{}).Select("SUM(cpu) as total").Where(where).Scan(&result).Error; err != nil {
+		logger.Error("Failed to sum CPU", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to sum CPU", err)
+		return
+	}
+	return result.Total, nil
+}
+
+func (a *InstanceAdmin) SumMemory(ctx context.Context) (total int64, err error) {
+	memberShip := GetMemberShip(ctx)
+	ctx, db := GetContextDB(ctx)
+	where := memberShip.GetWhere()
+
+	var result struct {
+		Total int64
+	}
+	if err = db.Model(&model.Instance{}).Select("SUM(memory) as total").Where(where).Scan(&result).Error; err != nil {
+		logger.Error("Failed to sum memory", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to sum memory", err)
+		return
+	}
+	return result.Total, nil
+}
