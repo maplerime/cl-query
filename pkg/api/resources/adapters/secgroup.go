@@ -30,6 +30,7 @@ type SecurityGroupResponse struct {
 	IsDefault        bool               `json:"is_default"`
 	VPC              *ResourceReference `json:"vpc,omitempty"`
 	TargetInterfaces []*TargetInterface `json:"target_interfaces,omitempty"`
+	RuleCount        int64              `json:"rule_count"`
 }
 
 type SecurityGroupListResponse struct {
@@ -50,6 +51,7 @@ type SecurityGroupAdapter struct {
 	service         *services.SecgroupAdmin
 	routerService   *services.RouterAdmin
 	instanceService *services.InstanceAdmin
+	ruleService     *services.SecruleAdmin
 }
 
 func NewSecurityGroupAdapter() *SecurityGroupAdapter {
@@ -58,6 +60,7 @@ func NewSecurityGroupAdapter() *SecurityGroupAdapter {
 		service:         &services.SecgroupAdmin{},
 		routerService:   &services.RouterAdmin{},
 		instanceService: &services.InstanceAdmin{},
+		ruleService:     &services.SecruleAdmin{},
 	}
 }
 
@@ -167,6 +170,15 @@ func (a *SecurityGroupAdapter) getSecurityGroupResponse(ctx context.Context, sec
 	logger.Debugf("Create secgroup response for secgroup %+v", secgroup)
 
 	owner := orgAdmin.GetOrgName(ctx, secgroup.Owner)
+
+	// rule count
+	ruleCount, err := a.ruleService.CountBySecGroup(ctx, secgroup.ID)
+	if err != nil {
+		logger.Errorf("Failed to count security group rules: %v", err)
+		ruleCount = 0
+		err = nil
+	}
+
 	secgroupResp = &SecurityGroupResponse{
 		ResourceReference: &ResourceReference{
 			ID:        secgroup.UUID,
@@ -176,6 +188,7 @@ func (a *SecurityGroupAdapter) getSecurityGroupResponse(ctx context.Context, sec
 			UpdatedAt: secgroup.UpdatedAt.Format(TimeStringForMat),
 		},
 		IsDefault: secgroup.IsDefault,
+		RuleCount: ruleCount,
 	}
 	if secgroup.Router != nil {
 		secgroupResp.VPC = &ResourceReference{

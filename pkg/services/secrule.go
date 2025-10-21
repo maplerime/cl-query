@@ -106,3 +106,13 @@ func (a *SecruleAdmin) Count(ctx context.Context) (count int64, err error) {
 	}
 	return
 }
+
+func (a *SecruleAdmin) CountBySecGroup(ctx context.Context, groupID int64) (count int64, err error) {
+	ctx, db := GetContextDB(ctx)
+
+	if err = db.Model(&model.SecurityRule{}).Where("secgroup = ?", groupID).Count(&count).Error; err != nil {
+		logger.Error("Failed to count security group rules", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count security group rules", err)
+	}
+	return
+}
