@@ -105,7 +105,8 @@ func (a *VolumeAdmin) Count(ctx context.Context) (count int64, err error) {
 	ctx, db := GetContextDB(ctx)
 	where := memberShip.GetWhere()
 
-	if err = db.Model(&model.Volume{}).Where(where).Count(&count).Error; err != nil {
+	bootingWhere := fmt.Sprintf("booting=%t", false)
+	if err = db.Model(&model.Volume{}).Where(where).Where(bootingWhere).Count(&count).Error; err != nil {
 		logger.Error("Failed to count volumes", err)
 		err = NewCLError(ErrSQLSyntaxError, "Failed to count volumes", err)
 	}
