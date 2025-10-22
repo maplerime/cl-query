@@ -41,9 +41,10 @@ type SecurityGroupListResponse struct {
 }
 
 type SecurityGroupFilters struct {
-	Name  string   `json:"name,omitempty"`
-	UUIDs []string `json:"uuids,omitempty" binding:"omitempty,dive,uuid"`
-	VpcID string   `json:"vpc_id,omitempty" binding:"omitempty,uuid"`
+	Name      string   `json:"name,omitempty"`
+	UUIDs     []string `json:"uuids,omitempty" binding:"omitempty,dive,uuid"`
+	VpcID     string   `json:"vpc_id,omitempty" binding:"omitempty,uuid"`
+	ExactName string   `json:"exact_name,omitempty"`
 }
 
 type SecurityGroupAdapter struct {
@@ -77,6 +78,12 @@ func (a *SecurityGroupAdapter) MakeQuery(c *gin.Context, filtersMap map[string]i
 	if filters.Name != "" {
 		conditions = append(conditions, fmt.Sprintf("name like '%%%s%%'", filters.Name))
 		logger.Debugf("Added name filter: %s", filters.Name)
+	}
+
+	// name精准匹配
+	if filters.ExactName != "" {
+		conditions = append(conditions, fmt.Sprintf("name = '%s'", filters.ExactName))
+		logger.Debugf("Added exact name filter: %s", filters.ExactName)
 	}
 
 	if filters.UUIDs != nil {
