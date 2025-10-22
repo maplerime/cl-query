@@ -41,8 +41,9 @@ type VPCListResponse struct {
 }
 
 type VPCFilters struct {
-	UUIDs []string `json:"uuids,omitempty" binding:"omitempty,dive,uuid"`
-	Name  string   `json:"name,omitempty"`
+	UUIDs     []string `json:"uuids,omitempty" binding:"omitempty,dive,uuid"`
+	Name      string   `json:"name,omitempty"`
+	ExactName string   `json:"exact_name,omitempty"`
 }
 
 type VPCAdapter struct {
@@ -75,6 +76,12 @@ func (a *VPCAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interface{}
 	if filters.Name != "" {
 		conditions = append(conditions, fmt.Sprintf("name like '%%%s%%'", filters.Name))
 		logger.Debugf("Added name filter: %s", filters.Name)
+	}
+
+	// name精准匹配
+	if filters.ExactName != "" {
+		conditions = append(conditions, fmt.Sprintf("name = '%s'", filters.ExactName))
+		logger.Debugf("Added exact name filter: %s", filters.ExactName)
 	}
 
 	// UUIDs查询
