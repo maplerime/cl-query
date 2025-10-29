@@ -40,6 +40,7 @@ type HyperResponse struct {
 	DiskOverRate  float32 `json:"disk_over_rate"`
 	ZoneID        int64   `json:"zone_id"`
 	ZoneName      string  `json:"zone_name"`
+	ZoneRemark    string  `json:"zone_remark"`
 	Remark        string  `json:"remark"`
 	Cpu           int64   `json:"cpu"`
 	Memory        int64   `json:"memory"`
@@ -201,6 +202,7 @@ func (a *HyperAdapter) getHyperResponse(ctx context.Context, hyper *model.Hyper)
 
 	if hyper.Zone != nil {
 		resp.ZoneName = hyper.Zone.Name
+		resp.ZoneRemark = hyper.Zone.Remark
 	}
 
 	if hyper.Resource != nil {
