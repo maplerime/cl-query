@@ -116,3 +116,51 @@ func (a *HyperAdmin) GetHyperByHostname(ctx context.Context, hostname string) (h
 	}
 	return
 }
+
+func (a *HyperAdmin) GetHypersByZoneIDs(ctx context.Context, zoneIDs []int64) (hypersByZone map[int64][]*model.Hyper, err error) {
+	if len(zoneIDs) == 0 {
+		return make(map[int64][]*model.Hyper), nil
+	}
+
+	_, db := GetContextDB(ctx)
+	
+	var hypers []*model.Hyper
+	if err = db.Where("hostid >= 0 AND zone_id IN (?)", zoneIDs).Find(&hypers).Error; err != nil {
+		logger.Errorf("Failed to batch query hypervisors by zone IDs: %v", err)
+		return nil, NewCLError(ErrSQLSyntaxError, "Failed to retrieve hypervisors", err)
+	}
+
+	var hostids []int32
+	hyperMap := make(map[int32]*model.Hyper)
+	for _, hyper := range hypers {
+		hostids = append(hostids, hyper.Hostid)
+		hyperMap[hyper.Hostid] = hyper
+	}
+
+	var resources []*model.Resource
+	if len(hostids) > 0 {
+		if err = db.Where("hostid IN (?)", hostids).Find(&resources).Error; err != nil {
+			logger.Errorf("Failed to batch query resources: %v", err)
+			return nil, NewCLError(ErrSQLSyntaxError, "Failed to retrieve resources", err)
+		}
+
+		for _, resource := range resources {
+			if hyper, exists := hyperMap[resource.Hostid]; exists {
+				hyper.Resource = resource
+			}
+		}
+	}
+
+	hypersByZone = make(map[int64][]*model.Hyper)
+	for _, hyper := range hypers {
+		if hyper.Resource == nil {
+			hyper.Resource = &model.Resource{Hostid: hyper.Hostid}
+		}
+		if hypersByZone[hyper.ZoneID] == nil {
+			hypersByZone[hyper.ZoneID] = []*model.Hyper{}
+		}
+		hypersByZone[hyper.ZoneID] = append(hypersByZone[hyper.ZoneID], hyper)
+	}
+
+	return hypersByZone, nil
+}

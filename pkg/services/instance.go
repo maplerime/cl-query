@@ -332,6 +332,46 @@ func (a *InstanceAdmin) GetInstanceCountByZone(ctx context.Context, zoneID int64
 	return a.GetInstanceCount(ctx, query)
 }
 
+func (a *InstanceAdmin) GetInstanceCountsByZoneIDs(ctx context.Context, zoneIDs []int64) (countsByZone map[int64]int64, err error) {
+	if len(zoneIDs) == 0 {
+		return make(map[int64]int64), nil
+	}
+
+	memberShip := GetMemberShip(ctx)
+	permit := memberShip.CheckPermission(model.Reader)
+	if !permit {
+		logger.Error("Not authorized for this operation")
+		return nil, NewCLError(ErrPermissionDenied, "Not authorized for this operation", nil)
+	}
+
+	_, db := GetContextDB(ctx)
+	
+	var results []struct {
+		ZoneID int64 `gorm:"column:zone_id"`
+		Count  int64 `gorm:"column:count"`
+	}
+	
+	if err = db.Model(&model.Instance{}).
+		Select("zone_id, COUNT(*) as count").
+		Where("zone_id IN (?)", zoneIDs).
+		Group("zone_id").
+		Scan(&results).Error; err != nil {
+		logger.Errorf("Failed to batch count instances by zone IDs: %v", err)
+		return nil, NewCLError(ErrSQLSyntaxError, "Failed to count instances", err)
+	}
+
+	countsByZone = make(map[int64]int64)
+	for _, zoneID := range zoneIDs {
+		countsByZone[zoneID] = 0
+	}
+	
+	for _, result := range results {
+		countsByZone[result.ZoneID] = result.Count
+	}
+
+	return countsByZone, nil
+}
+
 func (a *InstanceAdmin) ListWithJoins(ctx context.Context, offset, limit int64, order, query string) (total int64, instances []*model.Instance, err error) {
 	memberShip := GetMemberShip(ctx)
 	permit := memberShip.CheckPermission(model.Reader)

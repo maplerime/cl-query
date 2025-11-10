@@ -111,15 +111,11 @@ func (a *ZoneAdapter) List(c *gin.Context, req *ResourceQueryRequest) (interface
 
 	logger.Infof("Successfully retrieved %d Zones (total: %d)", len(zones), total)
 
-	// 构建响应
-	zoneResponses := make([]*ZoneResponse, len(zones))
-	for i, zone := range zones {
-		zoneResp, err := a.getZoneResponse(ctx, zone)
-		if err != nil {
-			logger.Errorf("Failed to create zone response: %v", err)
-			return nil, err
-		}
-		zoneResponses[i] = zoneResp
+	// 批量获取zones数据
+	zoneResponses, err := a.getBatchZoneResponses(ctx, zones)
+	if err != nil {
+		logger.Errorf("Failed to create batch zone responses: %v", err)
+		return nil, err
 	}
 
 	// 返回响应
@@ -142,78 +138,79 @@ func (a *ZoneAdapter) Get(c *gin.Context, zoneName string) (resp interface{}, er
 		return
 	}
 
-	resp, err = a.getZoneResponse(ctx, zone)
+	responses, err := a.getBatchZoneResponses(ctx, []*model.Zone{zone})
 	if err != nil {
 		return
 	}
 
+	resp = responses[0]
 	logger.Debugf("Get zone successfully: %+v", resp)
 	return
 }
 
-func (a *ZoneAdapter) getZoneResponse(ctx context.Context, zone *model.Zone) (*ZoneResponse, error) {
-	resp := &ZoneResponse{
-		ResourceReference: &ResourceReference{
-			ID:        strconv.FormatInt(zone.ID, 10),
-			Name:      zone.Name,
-			CreatedAt: zone.CreatedAt.Format(TimeStringForMat),
-			UpdatedAt: zone.UpdatedAt.Format(TimeStringForMat),
-		},
-		Default: zone.Default,
-		Remark:  zone.Remark,
+func (a *ZoneAdapter) getBatchZoneResponses(ctx context.Context, zones []*model.Zone) ([]*ZoneResponse, error) {
+	if len(zones) == 0 {
+		return []*ZoneResponse{}, nil
 	}
 
-	// 获取该zone下的所有hyper并汇总资源
-	err := a.aggregateHyperResources(ctx, zone.ID, resp)
+	zoneIDs := make([]int64, len(zones))
+	zoneMap := make(map[int64]*model.Zone)
+
+	for i, zone := range zones {
+		zoneIDs[i] = zone.ID
+		zoneMap[zone.ID] = zone
+	}
+
+	hypersByZone, err := a.hyperService.GetHypersByZoneIDs(ctx, zoneIDs)
 	if err != nil {
-		logger.Errorf("Failed to aggregate hyper resources for zone %d: %v", zone.ID, err)
+		logger.Errorf("Failed to batch get hypers by zone IDs: %v", err)
 		return nil, err
 	}
 
-	return resp, nil
-}
-
-func (a *ZoneAdapter) aggregateHyperResources(ctx context.Context, zoneID int64, resp *ZoneResponse) error {
-	// 获取该zone下的所有hyper来汇总资源
-	query := fmt.Sprintf("zone_id = %d", zoneID)
-	_, hypers, err := a.hyperService.List(ctx, 0, -1, "", query)
+	instanceCountsByZone, err := a.instanceService.GetInstanceCountsByZoneIDs(ctx, zoneIDs)
 	if err != nil {
-		return err
+		logger.Errorf("Failed to batch get instance counts by zone IDs: %v", err)
+		return nil, err
 	}
 
-	// hyper总数
-	resp.HyperCount = int64(len(hypers))
-
-	// 汇总资源
-	for _, hyper := range hypers {
-		if hyper.Resource != nil {
-			// CPU
-			resp.CpuTotal += hyper.Resource.CpuTotal
-			resp.Cpu += hyper.Resource.Cpu
-
-			// Memory
-			resp.MemoryTotal += hyper.Resource.MemoryTotal
-			resp.Memory += hyper.Resource.Memory
-
-			// Disk
-			resp.DiskTotal += hyper.Resource.DiskTotal
-			resp.Disk += hyper.Resource.Disk
+	responses := make([]*ZoneResponse, len(zones))
+	for i, zone := range zones {
+		resp := &ZoneResponse{
+			ResourceReference: &ResourceReference{
+				ID:        strconv.FormatInt(zone.ID, 10),
+				Name:      zone.Name,
+				CreatedAt: zone.CreatedAt.Format(TimeStringForMat),
+				UpdatedAt: zone.UpdatedAt.Format(TimeStringForMat),
+			},
+			Default: zone.Default,
+			Remark:  zone.Remark,
 		}
+
+		hypers := hypersByZone[zone.ID]
+		resp.HyperCount = int64(len(hypers))
+
+		for _, hyper := range hypers {
+			if hyper.Resource != nil {
+				resp.CpuTotal += hyper.Resource.CpuTotal
+				resp.Cpu += hyper.Resource.Cpu
+				resp.MemoryTotal += hyper.Resource.MemoryTotal
+				resp.Memory += hyper.Resource.Memory
+				resp.DiskTotal += hyper.Resource.DiskTotal
+				resp.Disk += hyper.Resource.Disk
+			}
+		}
+
+		resp.Memory = resp.Memory / (1024 * 1024)              // Convert KB to GB
+		resp.Disk = resp.Disk / (1024 * 1024 * 1024)           // Convert B to GB
+		resp.MemoryTotal = resp.MemoryTotal / (1024 * 1024)    // Convert KB to GB
+		resp.DiskTotal = resp.DiskTotal / (1024 * 1024 * 1024) // Convert B to GB
+
+		if count, exists := instanceCountsByZone[zone.ID]; exists {
+			resp.InstanceCount = count
+		}
+
+		responses[i] = resp
 	}
 
-	// 单位转换
-	resp.Memory = resp.Memory / (1024 * 1024)              // Convert KB to GB
-	resp.Disk = resp.Disk / (1024 * 1024 * 1024)           // Convert B to GB
-	resp.MemoryTotal = resp.MemoryTotal / (1024 * 1024)    // Convert KB to GB
-	resp.DiskTotal = resp.DiskTotal / (1024 * 1024 * 1024) // Convert B to GB
-
-	// 统计该zone下所有hyper的VM数量
-	vmCount, err := a.instanceService.GetInstanceCountByZone(ctx, zoneID)
-	if err != nil {
-		logger.Errorf("Failed to count VMs for zone %d: %v", zoneID, err)
-	} else {
-		resp.InstanceCount = vmCount
-	}
-
-	return nil
+	return responses, nil
 }
