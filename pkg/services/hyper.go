@@ -87,7 +87,7 @@ func (a *HyperAdmin) GetHypersByHostids(ctx context.Context, hostids []int32) (h
 	_, db := GetContextDB(ctx)
 
 	var hyperList []*model.Hyper
-	if err = db.Where("hostid IN (?)", hostids).Find(&hyperList).Error; err != nil {
+	if err = db.Preload("Zone").Where("hostid IN (?)", hostids).Find(&hyperList).Error; err != nil {
 		logger.Error("Failed to batch query hypervisors", err)
 		return nil, NewCLError(ErrHypervisorNotFound, "Specified hypervisor not found", err)
 	}
@@ -123,7 +123,7 @@ func (a *HyperAdmin) GetHypersByZoneIDs(ctx context.Context, zoneIDs []int64) (h
 	}
 
 	_, db := GetContextDB(ctx)
-	
+
 	var hypers []*model.Hyper
 	if err = db.Where("hostid >= 0 AND zone_id IN (?)", zoneIDs).Find(&hypers).Error; err != nil {
 		logger.Errorf("Failed to batch query hypervisors by zone IDs: %v", err)

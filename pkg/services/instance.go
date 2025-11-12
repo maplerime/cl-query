@@ -332,9 +332,9 @@ func (a *InstanceAdmin) GetInstanceCountByZone(ctx context.Context, zoneID int64
 	return a.GetInstanceCount(ctx, query)
 }
 
-func (a *InstanceAdmin) GetInstanceCountsByZoneIDs(ctx context.Context, zoneIDs []int64) (countsByZone map[int64]int64, err error) {
-	if len(zoneIDs) == 0 {
-		return make(map[int64]int64), nil
+func (a *InstanceAdmin) GetInstanceCountsByHypers(ctx context.Context, hostIDs []int32) (countsByHyper map[int32]int64, err error) {
+	if len(hostIDs) == 0 {
+		return make(map[int32]int64), nil
 	}
 
 	memberShip := GetMemberShip(ctx)
@@ -345,31 +345,31 @@ func (a *InstanceAdmin) GetInstanceCountsByZoneIDs(ctx context.Context, zoneIDs 
 	}
 
 	_, db := GetContextDB(ctx)
-	
+
 	var results []struct {
-		ZoneID int64 `gorm:"column:zone_id"`
-		Count  int64 `gorm:"column:count"`
+		Hyper int32 `gorm:"column:hyper"`
+		Count int64 `gorm:"column:count"`
 	}
-	
+
 	if err = db.Model(&model.Instance{}).
-		Select("zone_id, COUNT(*) as count").
-		Where("zone_id IN (?)", zoneIDs).
-		Group("zone_id").
+		Select("hyper, COUNT(*) as count").
+		Where("hyper IN (?)", hostIDs).
+		Group("hyper").
 		Scan(&results).Error; err != nil {
-		logger.Errorf("Failed to batch count instances by zone IDs: %v", err)
+		logger.Errorf("Failed to batch count instances by hyper IDs: %v", err)
 		return nil, NewCLError(ErrSQLSyntaxError, "Failed to count instances", err)
 	}
 
-	countsByZone = make(map[int64]int64)
-	for _, zoneID := range zoneIDs {
-		countsByZone[zoneID] = 0
-	}
-	
-	for _, result := range results {
-		countsByZone[result.ZoneID] = result.Count
+	countsByHyper = make(map[int32]int64)
+	for _, hostID := range hostIDs {
+		countsByHyper[hostID] = 0
 	}
 
-	return countsByZone, nil
+	for _, result := range results {
+		countsByHyper[result.Hyper] = result.Count
+	}
+
+	return countsByHyper, nil
 }
 
 func (a *InstanceAdmin) ListWithJoins(ctx context.Context, offset, limit int64, order, query string) (total int64, instances []*model.Instance, err error) {
@@ -411,6 +411,8 @@ func (a *InstanceAdmin) ListWithJoins(ctx context.Context, offset, limit int64, 
 		Joins("LEFT JOIN security_groups ON security_groups.id = secgroup_ifaces.security_group_id AND security_groups.deleted_at IS NULL").
 		Joins("LEFT JOIN subnets AS site_subnets ON site_subnets.interface = interfaces.id AND site_subnets.deleted_at IS NULL").
 		Joins("LEFT JOIN addresses AS site_addresses ON site_addresses.subnet_id = site_subnets.id AND site_addresses.deleted_at IS NULL")
+	//Joins("LEFT JOIN vm_rule_links AS adjust_rule_links ON adjust_rule_links.instance_id = instances.uuid AND adjust_rule_links.deleted_at IS NULL").
+	//Joins("LEFT JOIN adjust_rule_group ON adjust_rule_group.uuid = adjust_rule_links.group_uuid AND adjust_rule_group.deleted_at IS NULL")
 
 	// 计数
 	if err = joinDB.Model(&model.Instance{}).Where(where).Where(query).Select("COUNT(DISTINCT instances.id)").Count(&total).Error; err != nil {

@@ -63,6 +63,7 @@ type InstanceFilters struct {
 	SecurityGroupID string   `json:"security_group_id,omitempty" binding:"omitempty,uuid"`
 	Hyper           *int32   `json:"hyper,omitempty" binding:"omitempty"`
 	Keyword         string   `json:"keyword,omitempty" binding:"omitempty"`
+	AdjustRuleID    string   `json:"adjust_rule_id,omitempty" binding:"omitempty,uuid"`
 }
 
 type InstanceAdapter struct {
@@ -153,6 +154,12 @@ func (a *InstanceAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interf
 	if filters.SecurityGroupID != "" {
 		conditions = append(conditions, fmt.Sprintf("secgroup_ifaces.security_group_id = '%s'", filters.SecurityGroupID))
 		logger.Debugf("Added security group filter: %s", filters.SecurityGroupID)
+	}
+
+	// 智能规则查询
+	if filters.AdjustRuleID != "" {
+		//conditions = append(conditions, fmt.Sprintf("adjust_rule_group.rule_id = '%s'", filters.AdjustRuleID))
+		//logger.Debugf("Added adjust rule ID filter: %s", filters.AdjustRuleID)
 	}
 
 	// hyper查询
@@ -299,10 +306,6 @@ func (a *InstanceAdapter) getInstanceResponse(ctx context.Context, instance *mod
 		instanceResp.Memory = instance.Flavor.Memory
 		instanceResp.Disk = instance.Flavor.Disk
 	}
-	if instance.Zone != nil {
-		instanceResp.ZoneName = instance.Zone.Name
-		instanceResp.ZoneRemark = instance.Zone.Remark
-	}
 	volumes := make([]*VolumeInfoResponse, len(instance.Volumes))
 	for i, volume := range instance.Volumes {
 		volumes[i] = &VolumeInfoResponse{
@@ -336,6 +339,10 @@ func (a *InstanceAdapter) getInstanceResponse(ctx context.Context, instance *mod
 		instanceResp.Hypervisor = &BaseReference{
 			ID:   strconv.Itoa(int(instance.Hyper)),
 			Name: hyper.Hostname,
+		}
+		if hyper.Zone != nil {
+			instanceResp.ZoneName = hyper.Zone.Name
+			instanceResp.ZoneRemark = hyper.Zone.Remark
 		}
 	}
 	interfaces := make([]*InterfaceResponse, len(instance.Interfaces))

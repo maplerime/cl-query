@@ -167,9 +167,16 @@ func (a *ZoneAdapter) getBatchZoneResponses(ctx context.Context, zones []*model.
 		return nil, err
 	}
 
-	instanceCountsByZone, err := a.instanceService.GetInstanceCountsByZoneIDs(ctx, zoneIDs)
+	var hyperIDs []int32
+	for _, hypers := range hypersByZone {
+		for _, hyper := range hypers {
+			hyperIDs = append(hyperIDs, hyper.Hostid)
+		}
+	}
+
+	instanceCountsByHyper, err := a.instanceService.GetInstanceCountsByHypers(ctx, hyperIDs)
 	if err != nil {
-		logger.Errorf("Failed to batch get instance counts by zone IDs: %v", err)
+		logger.Errorf("Failed to batch get instance counts by hyper IDs: %v", err)
 		return nil, err
 	}
 
@@ -198,16 +205,16 @@ func (a *ZoneAdapter) getBatchZoneResponses(ctx context.Context, zones []*model.
 				resp.DiskTotal += hyper.Resource.DiskTotal
 				resp.Disk += hyper.Resource.Disk
 			}
+
+			if count, exists := instanceCountsByHyper[hyper.Hostid]; exists {
+				resp.InstanceCount += count
+			}
 		}
 
 		resp.Memory = resp.Memory / (1024 * 1024)              // Convert KB to GB
 		resp.Disk = resp.Disk / (1024 * 1024 * 1024)           // Convert B to GB
 		resp.MemoryTotal = resp.MemoryTotal / (1024 * 1024)    // Convert KB to GB
 		resp.DiskTotal = resp.DiskTotal / (1024 * 1024 * 1024) // Convert B to GB
-
-		if count, exists := instanceCountsByZone[zone.ID]; exists {
-			resp.InstanceCount = count
-		}
 
 		responses[i] = resp
 	}
