@@ -415,7 +415,7 @@ func (a *InstanceAdmin) ListWithJoins(ctx context.Context, offset, limit int64, 
 
 	if strings.Contains(query, "adjust_rule_group") {
 		joinDB = joinDB.
-			Joins("LEFT JOIN vm_rule_links AS adjust_rule_links ON adjust_rule_links.instance_id = instances.uuid AND adjust_rule_links.deleted_at IS NULL").
+			Joins("LEFT JOIN vm_rule_links AS adjust_rule_links ON adjust_rule_links.vm_uuid = instances.uuid AND adjust_rule_links.deleted_at IS NULL").
 			Joins("LEFT JOIN adjust_rule_group ON adjust_rule_group.uuid = adjust_rule_links.group_uuid AND adjust_rule_group.deleted_at IS NULL")
 	}
 
