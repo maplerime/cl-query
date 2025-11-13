@@ -158,8 +158,8 @@ func (a *InstanceAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interf
 
 	// 智能规则查询
 	if filters.AdjustRuleID != "" {
-		//conditions = append(conditions, fmt.Sprintf("adjust_rule_group.rule_id = '%s'", filters.AdjustRuleID))
-		//logger.Debugf("Added adjust rule ID filter: %s", filters.AdjustRuleID)
+		conditions = append(conditions, fmt.Sprintf("adjust_rule_group.rule_id = '%s'", filters.AdjustRuleID))
+		logger.Debugf("Added adjust rule ID filter: %s", filters.AdjustRuleID)
 	}
 
 	// hyper查询

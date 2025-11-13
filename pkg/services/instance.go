@@ -10,6 +10,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 	"web/src/model"
 
 	"github.com/jinzhu/gorm"
@@ -411,8 +412,12 @@ func (a *InstanceAdmin) ListWithJoins(ctx context.Context, offset, limit int64, 
 		Joins("LEFT JOIN security_groups ON security_groups.id = secgroup_ifaces.security_group_id AND security_groups.deleted_at IS NULL").
 		Joins("LEFT JOIN subnets AS site_subnets ON site_subnets.interface = interfaces.id AND site_subnets.deleted_at IS NULL").
 		Joins("LEFT JOIN addresses AS site_addresses ON site_addresses.subnet_id = site_subnets.id AND site_addresses.deleted_at IS NULL")
-	//Joins("LEFT JOIN vm_rule_links AS adjust_rule_links ON adjust_rule_links.instance_id = instances.uuid AND adjust_rule_links.deleted_at IS NULL").
-	//Joins("LEFT JOIN adjust_rule_group ON adjust_rule_group.uuid = adjust_rule_links.group_uuid AND adjust_rule_group.deleted_at IS NULL")
+
+	if strings.Contains(query, "adjust_rule_group") {
+		joinDB = joinDB.
+			Joins("LEFT JOIN vm_rule_links AS adjust_rule_links ON adjust_rule_links.instance_id = instances.uuid AND adjust_rule_links.deleted_at IS NULL").
+			Joins("LEFT JOIN adjust_rule_group ON adjust_rule_group.uuid = adjust_rule_links.group_uuid AND adjust_rule_group.deleted_at IS NULL")
+	}
 
 	// 计数
 	if err = joinDB.Model(&model.Instance{}).Where(where).Where(query).Select("COUNT(DISTINCT instances.id)").Count(&total).Error; err != nil {
