@@ -21,7 +21,7 @@ import (
 
 	"math/rand"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	jwt "github.com/golang-jwt/jwt/v4"
 )
 
 const (
@@ -34,9 +34,9 @@ var (
 )
 
 type CustomClaims struct {
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 	UID string `json:"uid,omitempty"`
-	TID string `json:"tid,omitempty"`
+	OID string `json:"oid,omitempty"`
 }
 
 func (*CustomClaims) verifyPrivilege(resource interface{}) (result bool) {
@@ -44,7 +44,7 @@ func (*CustomClaims) verifyPrivilege(resource interface{}) (result bool) {
 	return true
 }
 
-func NewClaims(u, o, uid, tid string) (claims jwt.Claims, issuedAt, ExpiresAt int64) {
+func NewClaims(u, o, uid, oid string) (claims jwt.Claims, issuedAt, ExpiresAt int64) {
 	now := time.Now()
 	issuedAt = now.Unix()
 	if Config.Token.ExpiresAt == 0 {
@@ -52,17 +52,17 @@ func NewClaims(u, o, uid, tid string) (claims jwt.Claims, issuedAt, ExpiresAt in
 	}
 	ExpiresAt = now.Add(Config.Token.ExpiresAt).Unix()
 	claims = &CustomClaims{
-		StandardClaims: jwt.StandardClaims{
-			Audience:  u,
-			ExpiresAt: ExpiresAt,
-			Id:        claimsID(now),
-			IssuedAt:  issuedAt,
-			Issuer:    TokenIssuer,
-			NotBefore: issuedAt,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Audience:  jwt.ClaimStrings{u},
+			ExpiresAt: jwt.NewNumericDate(time.Unix(ExpiresAt, 0)),
+			ID:        claimsID(now),
+			IssuedAt:  jwt.NewNumericDate(time.Unix(issuedAt, 0)),
+			Issuer:    "Cloudland",
+			NotBefore: jwt.NewNumericDate(time.Unix(issuedAt, 0)),
 			Subject:   o,
 		},
 		UID: uid,
-		TID: tid,
+		OID: oid,
 	}
 
 	return
