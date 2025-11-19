@@ -102,3 +102,9 @@ type Token struct {
 	PublicKey  string
 	PrivateKey string
 }
+
+type WdsConfig struct {
+	Endpoint string
+	Username string
+	Password string
+}

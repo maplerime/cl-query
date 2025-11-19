@@ -549,3 +549,50 @@ func (a *InstanceAdmin) SumMemory(ctx context.Context) (total int64, err error) 
 	}
 	return result.Total, nil
 }
+
+func (a *InstanceAdmin) GetStatusStatistics(ctx context.Context) (total int64, statusCounts map[string]int64, err error) {
+	memberShip := GetMemberShip(ctx)
+	permit := memberShip.CheckPermission(model.Reader)
+	if !permit {
+		logger.Error("Not authorized for this operation")
+		return 0, nil, NewCLError(ErrPermissionDenied, "Not authorized for this operation", nil)
+	}
+
+	_, db := GetContextDB(ctx)
+	where := memberShip.GetWhere()
+
+	var results []struct {
+		Status string `gorm:"column:status"`
+		Count  int64  `gorm:"column:count"`
+	}
+
+	if err = db.Model(&model.Instance{}).
+		Select("status, COUNT(*) as count").
+		Where(where).
+		Group("status").
+		Scan(&results).Error; err != nil {
+		logger.Errorf("Failed to get instance status statistics: %v", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to get instance status statistics", err)
+		return
+	}
+
+	// init statusCounts map with all statuses set to 0
+	statusCounts = map[string]int64{
+		"pending":      0,
+		"running":      0,
+		"shut_off":     0,
+		"paused":       0,
+		"migrating":    0,
+		"reinstalling": 0,
+		"resizing":     0,
+		"deleting":     0,
+	}
+
+	// Aggregate counts
+	total = 0
+	for _, result := range results {
+		statusCounts[result.Status] = result.Count
+		total += result.Count
+	}
+	return
+}

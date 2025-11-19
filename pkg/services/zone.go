@@ -63,3 +63,12 @@ func (a *ZoneAdmin) GetZoneByName(ctx context.Context, name string) (zone *model
 	}
 	return
 }
+
+func (a *ZoneAdmin) Count(ctx context.Context) (count int64, err error) {
+	ctx, db := GetContextDB(ctx)
+	if err = db.Model(&model.Zone{}).Count(&count).Error; err != nil {
+		logger.Error("Failed to count zones", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count zones", err)
+	}
+	return
+}

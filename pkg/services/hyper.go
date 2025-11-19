@@ -164,3 +164,12 @@ func (a *HyperAdmin) GetHypersByZoneIDs(ctx context.Context, zoneIDs []int64) (h
 
 	return hypersByZone, nil
 }
+
+func (a *HyperAdmin) Count(ctx context.Context) (count int64, err error) {
+	ctx, db := GetContextDB(ctx)
+	if err = db.Model(&model.Hyper{}).Where("hostid >= 0").Count(&count).Error; err != nil {
+		logger.Error("Failed to count hypers", err)
+		err = NewCLError(ErrSQLSyntaxError, "Failed to count hypers", err)
+	}
+	return
+}
