@@ -50,6 +50,7 @@ type ServiceConfig struct {
 	Token     conf.Token
 	DebugMode bool
 	RateLimit int
+	Wds       conf.WdsConfig
 }
 
 func (c *ServiceConfig) GetAllowedOrigins() []string {
