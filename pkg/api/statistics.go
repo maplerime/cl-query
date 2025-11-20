@@ -111,6 +111,7 @@ func (api *StatisticsAPI) Resources(c *gin.Context) {
 	pools, err := wdsAdmin.GetPools()
 	if err != nil {
 		logger.Errorf("Get WDS pools failed: %+v", err)
+		storageData.PoolData = make([]*StoragePoolData, 0)
 	} else {
 		// 裸容量
 		phySize := uint64(0)
