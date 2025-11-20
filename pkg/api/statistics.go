@@ -53,7 +53,7 @@ type ResourceStatisticsResponse struct {
 	StorageData      *StorageData     `json:"storage_data"`
 }
 
-// ResourceStatistics
+// Resources
 // @Summary 获取资源统计
 // @Description 获取资源统计
 // @Tags Statistics
@@ -61,8 +61,8 @@ type ResourceStatisticsResponse struct {
 // @Failure 400 {object} APIError "请求参数错误"
 // @Failure 404 {object} APIError "实例不存在"
 // @Failure 500 {object} APIError "服务器内部错误"
-// @Router /resources/statistics [get]
-func (api *StatisticsAPI) ResourceStatistics(c *gin.Context) {
+// @Router /statistics/resources [get]
+func (api *StatisticsAPI) Resources(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// 计算节点总数

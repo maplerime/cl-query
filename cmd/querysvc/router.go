@@ -79,12 +79,14 @@ func NewRouter(ctx *context.Context) *gin.Engine {
 	ipTreeAPI := api.NewIPTreeAPI()
 	// 创建用量API实例
 	usageAPI := api.NewUsageAPI()
+	statisticsAPI := api.NewStatisticsAPI()
 
 	v1 := r.Group("/api/v1/query").Use(middleware.Authorize())
 	{
 		v1.POST("/resources", resources.QueryResources)
 		v1.GET("/resources/:resource_type/:id", resources.GetResource)
 		v1.GET("/instances/:id/subnet-ip-tree", ipTreeAPI.GetInstanceIPTree)
+		v1.GET("/statistics/resources", statisticsAPI.Resources)
 		v1.GET("/usage/summary", usageAPI.Summary)
 	}
 
