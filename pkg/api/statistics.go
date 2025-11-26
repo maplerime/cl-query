@@ -18,6 +18,7 @@ import (
 	. "github.com/maplerime/cl-query/pkg/common"
 	"github.com/maplerime/cl-query/pkg/services"
 	"net/http"
+	"strconv"
 )
 
 type StatisticsAPI struct{}
@@ -45,12 +46,19 @@ type StorageData struct {
 	PoolData    []*StoragePoolData `json:"pool_data"`    // 存储池信息
 }
 
+type ZoneData struct {
+	*BaseReference
+	Cpu      int64 `json:"cpu"`
+	CpuTotal int64 `json:"cpu_total"`
+}
+
 type ResourceStatisticsResponse struct {
 	HyperCount       int64            `json:"hyper_count"`
 	ZoneCount        int64            `json:"zone_count"`
 	InstanceCount    int64            `json:"instance_count"`
 	InstanceByStatus map[string]int64 `json:"instance_by_status"`
 	StorageData      *StorageData     `json:"storage_data"`
+	ZoneData         []*ZoneData      `json:"zone_data"`
 }
 
 // Resources
@@ -73,12 +81,42 @@ func (api *StatisticsAPI) Resources(c *gin.Context) {
 		return
 	}
 
-	// zone分组总数
+	// zone分组
 	zoneAdmin := &services.ZoneAdmin{}
-	zoneCount, err := zoneAdmin.Count(ctx)
+	zoneCount, zones, err := zoneAdmin.List(ctx, 0, 100, "", "")
 	if err != nil {
-		ErrorResponse(c, http.StatusInternalServerError, "Failed to get zone count", err)
+		ErrorResponse(c, http.StatusInternalServerError, "Failed to get zones", err)
 		return
+	}
+	zoneIDs := make([]int64, len(zones))
+	for i, zone := range zones {
+		zoneIDs[i] = zone.ID
+	}
+
+	// hyper列表
+	hyperByZone, err := hyperAdmin.GetHypersByZoneIDs(ctx, zoneIDs)
+	if err != nil {
+		ErrorResponse(c, http.StatusInternalServerError, "Failed to get hypers by zone IDs", err)
+		return
+	}
+
+	// zone统计
+	zoneData := make([]*ZoneData, len(zones))
+	for i, zone := range zones {
+		zoneData[i] = &ZoneData{
+			BaseReference: &BaseReference{
+				ID:   strconv.FormatInt(zone.ID, 10),
+				Name: zone.Name,
+			},
+		}
+		if hypers, exists := hyperByZone[zone.ID]; exists {
+			for _, hyper := range hypers {
+				if hyper.Resource != nil {
+					zoneData[i].Cpu += hyper.Resource.Cpu
+					zoneData[i].CpuTotal += hyper.Resource.CpuTotal
+				}
+			}
+		}
 	}
 
 	// instance各状态统计
@@ -146,6 +184,7 @@ func (api *StatisticsAPI) Resources(c *gin.Context) {
 		InstanceCount:    instanceCount,
 		InstanceByStatus: instanceByStatus,
 		StorageData:      storageData,
+		ZoneData:         zoneData,
 	})
 
 }
