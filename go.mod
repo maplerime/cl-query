@@ -2,7 +2,7 @@ module github.com/maplerime/cl-query
 
 go 1.24.1
 
-replace web => github.com/maplerime/cloudland/web v0.0.0-20250916083640-b97cabca56ee
+replace web => github.com/maplerime/cloudland/web v0.0.0-20251201095940-bee5e80924c8
 
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
@@ -38,7 +38,6 @@ require (
 	github.com/cloudwego/base64x v0.1.4 // indirect
 	github.com/cloudwego/iasm v0.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/felixge/fgprof v0.9.3 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
