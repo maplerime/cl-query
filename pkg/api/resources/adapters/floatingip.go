@@ -48,12 +48,13 @@ type FloatingIpInfo struct {
 
 // FloatingIpFilters 浮动IP查询过滤器
 type FloatingIpFilters struct {
-	Name       string   `json:"name,omitempty"`
-	InstanceID string   `json:"instance_id,omitempty"`
-	UUIDs      []string `json:"uuids,omitempty"`
-	IsIdle     *bool    `json:"is_idle,omitempty"` // 是否查询空闲的/非空闲的
-	Type       string   `json:"type,omitempty"`
-	HiddenSite bool     `json:"hidden_site,omitempty"` // 是否隐藏站群IP
+	Name                 string   `json:"name,omitempty"`
+	InstanceID           string   `json:"instance_id,omitempty"`
+	UUIDs                []string `json:"uuids,omitempty"`
+	IsIdle               *bool    `json:"is_idle,omitempty"` // 是否查询空闲的/非空闲的
+	Type                 string   `json:"type,omitempty"`
+	HiddenSite           bool     `json:"hidden_site,omitempty"` // 是否隐藏站群IP
+	AssignableInstanceID string   `json:"assignable_instance_id,omitempty"`
 }
 
 type FloatingIpResponse struct {
@@ -76,8 +77,10 @@ type FloatingIpListResponse struct {
 
 type FloatingIPAdapter struct {
 	BaseAdapter
-	service         *services.FloatingIpAdmin
-	instanceService *services.InstanceAdmin
+	service           *services.FloatingIpAdmin
+	instanceService   *services.InstanceAdmin
+	ipGroupService    *services.IpGroupAdmin
+	floatingIpService *services.FloatingIpAdmin
 }
 
 func NewFloatingIPAdapter() *FloatingIPAdapter {
@@ -142,6 +145,25 @@ func (a *FloatingIPAdapter) MakeQuery(c *gin.Context, filtersMap map[string]inte
 	if filters.HiddenSite {
 		conditions = append(conditions, fmt.Sprintf("type != '%s'", "site"))
 		logger.Debug("Added hidden_site filter to exclude type 'site'")
+	}
+
+	// 可分配到这个实例上的浮动IP
+	if filters.AssignableInstanceID != "" {
+		instance := &model.Instance{}
+		instance, err = a.instanceService.GetInstanceByUUID(ctx, filters.AssignableInstanceID)
+		if err != nil {
+			return
+		}
+		var floatingIps []*model.FloatingIp
+		floatingIpTotal := int64(0)
+		floatingIpTotal, floatingIps, err = a.floatingIpService.List(ctx, 0, 1, "", fmt.Sprintf(
+			"instance_id = %d AND type != '%s'", instance.ID, "site"), "")
+		if err != nil {
+			return
+		}
+		if floatingIpTotal > 0 && floatingIps[0].Subnet != nil && floatingIps[0].Subnet.Group != nil {
+			conditions = append(conditions, fmt.Sprintf("subnet_id IN (SELECT id FROM subnets WHERE group_id = %d)", floatingIps[0].Subnet.Group.ID))
+		}
 	}
 
 	if len(conditions) > 0 {

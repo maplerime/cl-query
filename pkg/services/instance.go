@@ -419,6 +419,11 @@ func (a *InstanceAdmin) ListWithJoins(ctx context.Context, offset, limit int64, 
 			Joins("LEFT JOIN adjust_rule_group ON adjust_rule_group.uuid = adjust_rule_links.group_uuid AND adjust_rule_group.deleted_at IS NULL")
 	}
 
+	if strings.Contains(query, "fip_subnet") {
+		joinDB = joinDB.
+			Joins("LEFT JOIN subnets AS fip_subnet ON fip_subnet.id = floating_ips.subnet_id AND fip_subnet.deleted_at IS NULL")
+	}
+
 	// 计数
 	if err = joinDB.Model(&model.Instance{}).Where(where).Where(query).Select("COUNT(DISTINCT instances.id)").Count(&total).Error; err != nil {
 		logger.Errorf("Failed to count instances with joins: %v", err)

@@ -64,14 +64,17 @@ type InstanceFilters struct {
 	Hyper           *int32   `json:"hyper,omitempty" binding:"omitempty"`
 	Keyword         string   `json:"keyword,omitempty" binding:"omitempty"`
 	AdjustRuleID    string   `json:"adjust_rule_id,omitempty" binding:"omitempty,uuid"`
+	AssignableIpID  string   `json:"assignable_ip_id,omitempty" binding:"omitempty,uuid"`
 }
 
 type InstanceAdapter struct {
 	BaseAdapter
-	service         *services.InstanceAdmin
-	routerService   *services.RouterAdmin
-	secgroupService *services.SecgroupAdmin
-	hyperService    *services.HyperAdmin
+	service           *services.InstanceAdmin
+	routerService     *services.RouterAdmin
+	secgroupService   *services.SecgroupAdmin
+	hyperService      *services.HyperAdmin
+	ipGroupService    *services.IpGroupAdmin
+	floatingIpService *services.FloatingIpAdmin
 }
 
 var interfaceAdapter = NewInterfaceAdapter()
@@ -88,6 +91,7 @@ func NewInstanceAdapter() *InstanceAdapter {
 
 func (a *InstanceAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interface{}) (query string, err error) {
 	logger.Debugf("Processing Instance filters: %+v", filtersMap)
+	ctx := c.Request.Context()
 
 	filters, err := ParseFilters[InstanceFilters](c)
 	if err != nil {
@@ -173,6 +177,26 @@ func (a *InstanceAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interf
 		conditions = append(conditions, fmt.Sprintf("instances.hyper = %d", hyper.Hostid))
 		logger.Debugf("Added hyper filter: %s", filters.Hyper)
 	}
+
+	// 可以分配到这个IP上的实例
+	if filters.AssignableIpID != "" {
+		ip := &model.FloatingIp{}
+		ip, err = a.floatingIpService.GetFloatingIpByUUID(ctx, filters.AssignableIpID)
+		if err != nil {
+			return
+		}
+		if ip.Subnet != nil && ip.Subnet.Group != nil {
+			subnetGroup := ip.Subnet.Group
+			condition := fmt.Sprintf(`(
+				(floating_ips.id IS NOT NULL AND fip_subnet.group_id = %d) OR
+				floating_ips.id IS NULL
+			)`, subnetGroup.ID)
+			conditions = append(conditions, condition)
+			logger.Debugf("Added assignable IP filter: instances with floating IP in group %d or no floating IP", subnetGroup.ID)
+		}
+	}
+
+	// 关键字查询
 	if filters.Keyword != "" {
 		keywordCondition := fmt.Sprintf(`(
 			instances.hostname LIKE '%%%s%%' OR
