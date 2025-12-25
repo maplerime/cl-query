@@ -19,6 +19,11 @@ if [ -z "${ENV_TYPE}" ]; then
     exit 1
 fi
 
+DEV_TAG=""
+if [ "${ENV_TYPE}" != "production" ]; then
+    DEV_TAG=":staging-latest"
+fi
+
 GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 # 获取最新的 Git 标签
 CURRENT_VERSION=""
@@ -67,10 +72,10 @@ docker tag ${image_latest} reg-staging.raksmart.com:8443/petacloud/${image_lates
     docker rmi reg-staging.raksmart.com:8443/petacloud/${image_latest}
 
 # push image with tag latest
-docker tag ${image_latest} reg-staging.raksmart.com:8443/petacloud/${image_name} && \
+docker tag ${image_latest} reg-staging.raksmart.com:8443/petacloud/${image_name}${DEV_TAG} && \
     docker login -u petacloud -p Adc2tek! reg-staging.raksmart.com:8443 && \
-    docker push reg-staging.raksmart.com:8443/petacloud/${image_name} && \
-    docker rmi reg-staging.raksmart.com:8443/petacloud/${image_name}
+    docker push reg-staging.raksmart.com:8443/petacloud/${image_name}${DEV_TAG} && \
+    docker rmi reg-staging.raksmart.com:8443/petacloud/${image_name}${DEV_TAG}
 
 # clean up
 docker rmi ${image_latest}
