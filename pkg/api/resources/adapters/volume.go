@@ -79,6 +79,11 @@ func NewVolumeAdapter() *VolumeAdapter {
 func (a *VolumeAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interface{}) (string, error) {
 	logger.Debugf("Processing Volume filters: %+v", filtersMap)
 
+	if len(filtersMap) == 0 {
+		logger.Debug("No filters provided, returning empty query")
+		return "", nil
+	}
+
 	filters, err := ParseFilters[VolumeFilters](c)
 	if err != nil {
 		return "", err
