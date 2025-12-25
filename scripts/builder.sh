@@ -13,12 +13,25 @@
 
 #set -e
 
+ENV_TYPE=$1
+if [ -z "${ENV_TYPE}" ]; then
+    echo "Usage: $0 <env_type>"
+    exit 1
+fi
+
 GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 # 获取最新的 Git 标签
-CURRENT_VERSION=$(git describe --tags --abbrev=0 2>/dev/null)
+CURRENT_VERSION=""
+if [ "${ENV_TYPE}" == "production" ]; then
+    # 获取master分支的最新tag
+    CURRENT_VERSION=$(git tag --sort=-version:refname | head -n 1)
+else
+    # 获取其他分支的最新tag
+    CURRENT_VERSION=$(git tag --sort=-version:refname | grep "staging-v" | head -n 1)
+fi
 # 如果没有标签，默认从 v1.0.0 开始
 if [ -z "$CURRENT_VERSION" ]; then
-    if [ "${GIT_BRANCH}" == "master" ]; then
+    if [ "${ENV_TYPE}" == "production" ]; then
         CURRENT_VERSION="v1.0.0"
     else
         CURRENT_VERSION="staging-v1.0.0"
@@ -26,8 +39,8 @@ if [ -z "$CURRENT_VERSION" ]; then
 fi
 VERSION_PREFIX="v"
 TAG_PREFIX="v"
-if [ "${GIT_BRANCH}" != "master" ]; then
-    VERSION_PREFIX="${GIT_BRANCH}-v"
+if [ "${ENV_TYPE}" != "production" ]; then
+    VERSION_PREFIX="staging-v"
     TAG_PREFIX="staging-v"
 fi
 # 解析版本号

@@ -95,8 +95,8 @@ func ParseVersion(versionFile string) *Version {
 	case 3:
 		logger.Debugf("Branch found, using branch")
 		version.BuildNumber = verParts[2]
-		versionStr = verParts[0]
-		branch = verParts[1]
+		versionStr = verParts[1]
+		branch = verParts[0]
 	}
 	version.Branch = branch
 	version.Release, version.Fixpack, version.Hotfix = parseVersionStr(versionStr)
@@ -110,9 +110,10 @@ func ParseVersion(versionFile string) *Version {
 func parseVersionStr(versionStr string) (uint8, uint8, uint8) {
 	logger.Debugf("Parsing version string: %s", versionStr)
 	parts := strings.Split(versionStr, ".")
-	if len(parts) != 3 {
+	if len(parts) != 3 && len(parts) != 4 {
 		return 0, 0, 0
 	}
+	parts[0] = strings.TrimPrefix(parts[0], "v")
 	r, _ := strconv.Atoi(parts[0])
 	f, _ := strconv.Atoi(parts[1])
 	h, _ := strconv.Atoi(parts[2])
