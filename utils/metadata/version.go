@@ -35,6 +35,7 @@ type Version struct {
 	Fixpack     uint8  `json:"fixpack"`
 	Hotfix      uint8  `json:"hotfix"`
 	BuildNumber string `json:"build_number"`
+	Version     string `json:"version"`
 }
 
 // ShortVersion returns a version string as 1.2.0
@@ -98,6 +99,7 @@ func ParseVersion(versionFile string) *Version {
 		versionStr = verParts[1]
 		branch = verParts[0]
 	}
+	version.Version = str
 	version.Branch = branch
 	version.Release, version.Fixpack, version.Hotfix = parseVersionStr(versionStr)
 	logger.Debugf("Parsed version: %s", version.ShortVersion())
