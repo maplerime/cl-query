@@ -163,6 +163,7 @@ func (a *SubnetAdmin) CountIdleAddressesForSubnet(ctx context.Context, subnet *m
 	err := db.Model(&model.Address{}).
 		Where("subnet_id = ?", subnet.ID).
 		Where("allocated = ?", "f").
+		Where("reserved = ?", "f").
 		Where("address != ?", subnet.Gateway).
 		Count(&idleCount).Error
 
@@ -293,8 +294,8 @@ func (a *SubnetAdmin) AddressStatistics(ctx context.Context, subnet *model.Subne
 	query := db.Model(&model.Address{}).
 		Select(`
 			COUNT(*) as total,
-			SUM(CASE WHEN allocated = 't' AND reserved = 'f' THEN 1 ELSE 0 END) as allocated,
-			SUM(CASE WHEN reserved = 't' AND reserved = 't' THEN 1 ELSE 0 END) as reserved,
+			SUM(CASE WHEN allocated = 't' AND (interface != 0 or second_interface != 0) THEN 1 ELSE 0 END) as allocated,
+			SUM(CASE WHEN reserved = 't' THEN 1 ELSE 0 END) as reserved,
 			SUM(CASE WHEN allocated = 'f' AND reserved = 'f' THEN 1 ELSE 0 END) as idle
 		`).
 		Where("subnet_id = ? AND address != ?", subnet.ID, subnet.Gateway)
