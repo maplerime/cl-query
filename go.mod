@@ -2,7 +2,7 @@ module github.com/maplerime/cl-query
 
 go 1.24.1
 
-replace web => github.com/maplerime/cloudland/web v0.0.0-20251201095940-bee5e80924c8
+replace web => github.com/maplerime/cloudland/web v0.0.0-20260106095016-ce8d46670450
 
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
@@ -10,7 +10,7 @@ require (
 	github.com/casbin/gorm-adapter/v3 v3.32.0
 	github.com/gin-contrib/cors v1.7.4
 	github.com/gin-gonic/gin v1.10.0
-	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/google/uuid v1.6.0
 	github.com/jinzhu/gorm v1.9.16
 	github.com/lib/pq v1.10.2
@@ -111,7 +111,7 @@ require (
 	gorm.io/driver/mysql v1.5.7 // indirect
 	gorm.io/driver/postgres v1.5.9 // indirect
 	gorm.io/driver/sqlserver v1.5.3 // indirect
-	gorm.io/gorm v1.25.12 // indirect
+	gorm.io/gorm v1.31.1 // indirect
 	gorm.io/plugin/dbresolver v1.5.3 // indirect
 	modernc.org/libc v1.22.2 // indirect
 	modernc.org/mathutil v1.5.0 // indirect

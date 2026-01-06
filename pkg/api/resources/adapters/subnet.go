@@ -58,6 +58,7 @@ type SubnetResponse struct {
 	Group          *ResourceReference `json:"group,omitempty"`
 	Type           string             `json:"type"`
 	Vlan           int                `json:"vlan,omitempty"`
+	Priority       int32              `json:"priority"`
 	IPCount        int64              `json:"ip_count"`        // total
 	IdleCount      int64              `json:"idle_count"`      // idle
 	ReservedCount  int64              `json:"reserved_count"`  // reserved
@@ -235,6 +236,7 @@ func (a *SubnetAdapter) getSubnetResponse(ctx context.Context, subnet *model.Sub
 		NameServer: subnet.NameServer,
 		Type:       subnet.Type,
 		Vlan:       int(subnet.Vlan),
+		Priority:   subnet.Priority,
 	}
 	if subnet.Router != nil {
 		router := subnet.Router
