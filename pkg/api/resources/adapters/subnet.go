@@ -179,6 +179,9 @@ func (a *SubnetAdapter) List(c *gin.Context, req *ResourceQueryRequest) (interfa
 	}
 
 	// 调用 service 层
+	if req.Order == "priority" {
+		req.Order = "subnets.priority asc, subnets.id asc"
+	}
 	total, subnets, err := a.service.List(ctx, int64(req.Offset), int64(req.Limit), req.Order, query, hasIdleIP)
 	if err != nil {
 		logger.Errorf("Service layer query failed: %v", err)
