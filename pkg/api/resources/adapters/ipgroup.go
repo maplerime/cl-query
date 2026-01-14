@@ -55,9 +55,10 @@ type IpGroupListResponse struct {
 }
 
 type IpGroupFilters struct {
-	UUIDs []string `json:"uuids,omitempty" binding:"omitempty,dive,uuid"`
-	Name  string   `json:"name,omitempty"`
-	Type  string   `json:"type,omitempty" binding:"omitempty"`
+	UUIDs     []string `json:"uuids,omitempty" binding:"omitempty,dive,uuid"`
+	Name      string   `json:"name,omitempty"`
+	ExactName string   `json:"exact_name,omitempty"`
+	Type      string   `json:"type,omitempty" binding:"omitempty"`
 }
 
 type IpGroupAdapter struct {
@@ -88,6 +89,12 @@ func (a *IpGroupAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interfa
 	if filters.Name != "" {
 		conditions = append(conditions, fmt.Sprintf("name like '%%%s%%'", filters.Name))
 		logger.Debugf("Added name filter: %s", filters.Name)
+	}
+
+	// name 精准查询
+	if filters.ExactName != "" {
+		conditions = append(conditions, fmt.Sprintf("name = '%s'", filters.ExactName))
+		logger.Debugf("Added exact name filter: %s", filters.ExactName)
 	}
 
 	// UUIDs查询
