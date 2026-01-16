@@ -195,56 +195,64 @@ func (a *AddressAdapter) getAddressResponse(ctx context.Context, address *model.
 		Remark:    address.Remark,
 	}
 
+	var iface *model.Interface
 	if address.Interface != 0 {
-		iface := &model.Interface{}
-		iface, err = a.interfaceService.Fetch(ctx, address.Interface)
-		if err != nil {
-			logger.Errorf("Failed to get interface for address %s, err: %v", address.Address, err)
-			return
+		primaryInterface, e := a.interfaceService.Fetch(ctx, address.Interface)
+		if e == nil && primaryInterface.PrimaryIf {
+			iface = primaryInterface
 		}
+	}
+	if address.SecondInterface != 0 && iface == nil {
+		secondInterface, e := a.interfaceService.Fetch(ctx, address.SecondInterface)
+		if e == nil && secondInterface.PrimaryIf {
+			iface = secondInterface
+		}
+	}
+	if iface == nil {
+		return
+	}
 
-		addressResp.TargetInterface = &TargetInterface{
-			ResourceReference: &ResourceReference{
-				ID:   iface.UUID,
-				Name: iface.Name,
-			},
-			MacAddr: iface.MacAddr,
-		}
-		if address.Subnet.Type == "internal" {
-			if iface.Instance > 0 {
-				instance := &model.Instance{}
-				instance, err = a.instanceService.Fetch(ctx, iface.Instance)
-				if err != nil {
-					logger.Errorf("Failed to get instance for interface %d, err: %v", iface.Instance, err)
-					return
-				}
-				addressResp.TargetInterface.FromInstance = &InstanceInfo{
-					ResourceReference: &ResourceReference{
-						ID: instance.UUID,
-					},
-					Hostname: instance.Hostname,
-				}
-				if instance.OwnerInfo != nil {
-					addressResp.TargetInterface.FromInstance.ResourceReference.Owner = instance.OwnerInfo.Name
-				}
-			}
-		} else {
-			floatingIp := &model.FloatingIp{}
-			floatingIp, err = a.floatingIpService.GetFloatingIpByAddress(ctx, address.Address)
+	addressResp.TargetInterface = &TargetInterface{
+		ResourceReference: &ResourceReference{
+			ID:   iface.UUID,
+			Name: iface.Name,
+		},
+		MacAddr: iface.MacAddr,
+	}
+	if address.Subnet.Type == "internal" {
+		if iface.Instance > 0 {
+			instance := &model.Instance{}
+			instance, err = a.instanceService.Fetch(ctx, iface.Instance)
 			if err != nil {
-				logger.Errorf("Failed to get floating IP for interface %d, err: %v", iface.ID, err)
-				return addressResp, nil
+				logger.Errorf("Failed to get instance for interface %d, err: %v", iface.Instance, err)
+				return
 			}
-			if err == nil && floatingIp.Instance != nil {
-				addressResp.TargetInterface.FromInstance = &InstanceInfo{
-					ResourceReference: &ResourceReference{
-						ID: floatingIp.Instance.UUID,
-					},
-					Hostname: floatingIp.Instance.Hostname,
-				}
-				if floatingIp.OwnerInfo != nil {
-					addressResp.TargetInterface.FromInstance.ResourceReference.Owner = floatingIp.OwnerInfo.Name
-				}
+			addressResp.TargetInterface.FromInstance = &InstanceInfo{
+				ResourceReference: &ResourceReference{
+					ID: instance.UUID,
+				},
+				Hostname: instance.Hostname,
+			}
+			if instance.OwnerInfo != nil {
+				addressResp.TargetInterface.FromInstance.ResourceReference.Owner = instance.OwnerInfo.Name
+			}
+		}
+	} else {
+		floatingIp := &model.FloatingIp{}
+		floatingIp, err = a.floatingIpService.GetFloatingIpByAddress(ctx, address.Address)
+		if err != nil {
+			logger.Errorf("Failed to get floating IP for interface %d, err: %v", iface.ID, err)
+			return addressResp, nil
+		}
+		if floatingIp.Instance != nil {
+			addressResp.TargetInterface.FromInstance = &InstanceInfo{
+				ResourceReference: &ResourceReference{
+					ID: floatingIp.Instance.UUID,
+				},
+				Hostname: floatingIp.Instance.Hostname,
+			}
+			if floatingIp.OwnerInfo != nil {
+				addressResp.TargetInterface.FromInstance.ResourceReference.Owner = floatingIp.OwnerInfo.Name
 			}
 		}
 	}
