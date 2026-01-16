@@ -196,18 +196,25 @@ func (a *AddressAdapter) getAddressResponse(ctx context.Context, address *model.
 	}
 
 	var iface *model.Interface
-	if address.Interface != 0 {
-		primaryInterface, e := a.interfaceService.Fetch(ctx, address.Interface)
-		if e == nil && primaryInterface.PrimaryIf {
-			iface = primaryInterface
+	switch {
+	case address.Interface != 0 && address.SecondInterface != 0:
+		first, err1 := a.interfaceService.Fetch(ctx, address.Interface)
+		second, err2 := a.interfaceService.Fetch(ctx, address.SecondInterface)
+		if err1 == nil && first.PrimaryIf {
+			iface = first
+		} else if err2 == nil && second.PrimaryIf {
+			iface = second
+		}
+	case address.Interface != 0:
+		if tmp, e := a.interfaceService.Fetch(ctx, address.Interface); e == nil {
+			iface = tmp
+		}
+	case address.SecondInterface != 0:
+		if tmp, e := a.interfaceService.Fetch(ctx, address.SecondInterface); e == nil {
+			iface = tmp
 		}
 	}
-	if address.SecondInterface != 0 && iface == nil {
-		secondInterface, e := a.interfaceService.Fetch(ctx, address.SecondInterface)
-		if e == nil && secondInterface.PrimaryIf {
-			iface = secondInterface
-		}
-	}
+
 	if iface == nil {
 		return
 	}
