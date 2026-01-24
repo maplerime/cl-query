@@ -5,11 +5,12 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/maplerime/cl-query/pkg/common"
 	"io"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/maplerime/cl-query/pkg/common"
 )
 
 type WdsAdmin struct{}
@@ -38,7 +39,8 @@ type WdsServerListResponse struct {
 	Data struct {
 		TotalCount int64 `json:"totalCount"`
 		List       []struct {
-			ID string `json:"id"`
+			ID       string `json:"id"`
+			HostName string `json:"host_name"`
 		} `json:"list"`
 	} `json:"data"`
 }
@@ -157,8 +159,8 @@ func (c *WdsClient) DoRequest(method, path string, payload any) (resp *http.Resp
 	}
 	logger.Debugf("Do request: %s %s", req.Method, urlStr)
 
-	req.Header.Set("Region", "default")
-	req.Header.Set("Az", "default")
+	req.Header.Set("Region", common.Config.Wds.Region)
+	req.Header.Set("Az", common.Config.Wds.Az)
 
 	resp, err = c.httpClient.Do(req)
 
@@ -211,7 +213,7 @@ func (a *WdsAdmin) Request(method, path string, payload any) (body []byte, err e
 }
 
 func (a *WdsAdmin) GetServers(serverType string) (resp *WdsServerListResponse, err error) {
-	path := fmt.Sprintf("%s?page_size=1", WdsServerListURL)
+	path := fmt.Sprintf("%s?page_size=100", WdsServerListURL)
 	if serverType != "" {
 		path += fmt.Sprintf("&server_type=%s", serverType)
 	}

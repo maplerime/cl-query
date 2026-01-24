@@ -14,11 +14,13 @@
 package api
 
 import (
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	. "github.com/maplerime/cl-query/pkg/common"
 	"github.com/maplerime/cl-query/pkg/services"
-	"net/http"
-	"strconv"
 )
 
 type StatisticsAPI struct{}
@@ -37,28 +39,41 @@ type StoragePoolData struct {
 }
 
 type StorageData struct {
-	NodeCount   int64              `json:"node_count"`   // 存储节点数
-	VolumeCount int64              `json:"volume_count"` // 存储卷数
-	PhySize     uint64             `json:"phy_size"`     // 裸容量
-	UsedSize    uint64             `json:"used_size"`    // 已使用
-	UnusedSize  uint64             `json:"unused_size"`  // 未使用
-	DataSize    uint64             `json:"data_size"`    // 数据量
-	PoolData    []*StoragePoolData `json:"pool_data"`    // 存储池信息
+	NodeCount     int64              `json:"node_count"`      // 存储节点数
+	HDDNodeCount  int64              `json:"hdd_node_count"`  // HDD存储节点数
+	NVMENodeCount int64              `json:"nvme_node_count"` // NVME存储节点数
+	VolumeCount   int64              `json:"volume_count"`    // 存储卷数
+	PhySize       uint64             `json:"phy_size"`        // 裸容量
+	UsedSize      uint64             `json:"used_size"`       // 已使用
+	UnusedSize    uint64             `json:"unused_size"`     // 未使用
+	DataSize      uint64             `json:"data_size"`       // 数据量
+	PoolData      []*StoragePoolData `json:"pool_data"`       // 存储池信息
 }
 
 type ZoneData struct {
 	*BaseReference
-	Cpu      int64 `json:"cpu"`
-	CpuTotal int64 `json:"cpu_total"`
+	HyperCount       int64            `json:"hyper_count"`        // 计算节点总数
+	FreeHyperCount   float32          `json:"free_hyper_count"`   // 空闲计算节点数
+	UsedHyperCount   float32          `json:"used_hyper_count"`   // 已用计算节点数
+	CpuTotal         int64            `json:"cpu_total"`          // CPU总量
+	CpuUsed          int64            `json:"cpu_used"`           // CPU使用
+	CpuFree          int64            `json:"cpu_free"`           // CPU空闲
+	InstanceCount    int64            `json:"instance_count"`     // 实例总数
+	InstanceByStatus map[string]int64 `json:"instance_by_status"` // 实例数量按状态分组
 }
 
 type ResourceStatisticsResponse struct {
-	HyperCount       int64            `json:"hyper_count"`
-	ZoneCount        int64            `json:"zone_count"`
-	InstanceCount    int64            `json:"instance_count"`
-	InstanceByStatus map[string]int64 `json:"instance_by_status"`
-	StorageData      *StorageData     `json:"storage_data"`
-	ZoneData         []*ZoneData      `json:"zone_data"`
+	ZoneCount        int64            `json:"zone_count"`         // 计算节点分组数
+	HyperCount       int64            `json:"hyper_count"`        // 计算节点总数
+	FreeHyperCount   float32          `json:"free_hyper_count"`   // 空闲计算节点数
+	UsedHyperCount   float32          `json:"used_hyper_count"`   // 已用计算节点数
+	CpuTotal         int64            `json:"cpu_total"`          // CPU总量
+	CpuUsed          int64            `json:"cpu_used"`           // CPU使用
+	CpuFree          int64            `json:"cpu_free"`           // CPU空闲
+	InstanceCount    int64            `json:"instance_count"`     // 实例总数
+	InstanceByStatus map[string]int64 `json:"instance_by_status"` // 实例数量按状态分组
+	StorageData      *StorageData     `json:"storage_data"`       // 存储数据
+	ZoneData         []*ZoneData      `json:"zone_data"`          // 分组数据
 }
 
 // Resources
@@ -100,31 +115,87 @@ func (api *StatisticsAPI) Resources(c *gin.Context) {
 		return
 	}
 
+	// 实例统计
+	instanceAdmin := &services.InstanceAdmin{}
+	hyperStatusCounts, err := instanceAdmin.GetHyperStatusCounts(ctx)
+	if err != nil {
+		ErrorResponse(c, http.StatusInternalServerError, "Failed to get instance statistics", err)
+		return
+	}
+	countsMap := make(map[int32]map[string]int64)
+	for _, hyperStatus := range hyperStatusCounts {
+		if _, exists := countsMap[hyperStatus.Hyper]; !exists {
+			countsMap[hyperStatus.Hyper] = make(map[string]int64)
+		}
+		countsMap[hyperStatus.Hyper][hyperStatus.Status] = hyperStatus.Count
+	}
+
 	// zone统计
+	cpuTotal := int64(0)
+	cpuUsed := int64(0)
+	cpuFree := int64(0)
+	instanceCount := int64(0)
+	instanceByStatus := map[string]int64{
+		"pending":      0,
+		"running":      0,
+		"shut_off":     0,
+		"paused":       0,
+		"migrating":    0,
+		"reinstalling": 0,
+		"resizing":     0,
+		"deleting":     0,
+	}
 	zoneData := make([]*ZoneData, len(zones))
+	usedHyperCount := float32(0)
+	freeHyperCount := float32(0)
 	for i, zone := range zones {
 		zoneData[i] = &ZoneData{
 			BaseReference: &BaseReference{
 				ID:   strconv.FormatInt(zone.ID, 10),
 				Name: zone.Name,
 			},
+			InstanceByStatus: map[string]int64{
+				"pending":      0,
+				"running":      0,
+				"shut_off":     0,
+				"paused":       0,
+				"migrating":    0,
+				"reinstalling": 0,
+				"resizing":     0,
+				"deleting":     0,
+			},
 		}
 		if hypers, exists := hyperByZone[zone.ID]; exists {
 			for _, hyper := range hypers {
+				zoneData[i].HyperCount++
 				if hyper.Resource != nil {
-					zoneData[i].Cpu += hyper.Resource.Cpu
+					// zone下的CPU数据汇总
+					zoneData[i].CpuFree += hyper.Resource.Cpu
 					zoneData[i].CpuTotal += hyper.Resource.CpuTotal
+					// 全部CPU数据汇总
+					cpuFree += hyper.Resource.Cpu
+					cpuTotal += hyper.Resource.CpuTotal
+					// 挨个hyper统计已用和空闲计算节点,并追加到zone中
+					usedHyper := float32(hyper.Resource.CpuTotal-hyper.Resource.Cpu) / hyper.CpuOverRate / 88
+					freeHyper := float32(hyper.Resource.Cpu) / hyper.CpuOverRate / 88
+					zoneData[i].UsedHyperCount += usedHyper
+					zoneData[i].UsedHyperCount += freeHyper
+				}
+				// 统计实例数量
+				if counts, exist := countsMap[hyper.Hostid]; exist {
+					for status, count := range counts {
+						zoneData[i].InstanceCount += count
+						zoneData[i].InstanceByStatus[status] += count
+						instanceCount += count
+						instanceByStatus[status] += count
+					}
 				}
 			}
 		}
-	}
-
-	// instance各状态统计
-	instanceAdmin := &services.InstanceAdmin{}
-	instanceCount, instanceByStatus, err := instanceAdmin.GetStatusStatistics(ctx)
-	if err != nil {
-		ErrorResponse(c, http.StatusInternalServerError, "Failed to get instance statistics", err)
-		return
+		zoneData[i].CpuUsed = zoneData[i].CpuTotal - zoneData[i].CpuFree
+		cpuUsed += zoneData[i].CpuUsed
+		usedHyperCount += zoneData[i].UsedHyperCount
+		freeHyperCount += zoneData[i].FreeHyperCount
 	}
 
 	// WDS
@@ -134,7 +205,19 @@ func (api *StatisticsAPI) Resources(c *gin.Context) {
 	if err != nil {
 		logger.Errorf("Get WDS storage nodes failed: %+v", err)
 	} else {
+		// 存储节点总数
 		storageData.NodeCount = wdsServers.Data.TotalCount
+		for _, server := range wdsServers.Data.List {
+			hostname := strings.ToLower(server.HostName)
+			if strings.Contains(hostname, "nvme") {
+				// NVME存储节点数
+				storageData.NVMENodeCount++
+			} else {
+				// HDD存储节点数
+				storageData.HDDNodeCount++
+			}
+		}
+
 	}
 
 	// 卷总数
@@ -160,27 +243,32 @@ func (api *StatisticsAPI) Resources(c *gin.Context) {
 		poolData := make([]*StoragePoolData, pools.Data.TotalCount)
 		for i, pool := range pools.Data.List {
 			phySize += pool.PhySize * pool.ReplicateSize
-			usedSize += pool.PhyUsedSize * pool.ReplicateSize
+			usedSize += pool.PhyUsedSize
 			dataSize += pool.PhySize
 			poolData[i] = &StoragePoolData{
 				PoolName:    pool.ClusterName,
-				PhySize:     pool.PhySize * pool.ReplicateSize,
-				UsedSize:    pool.PhyUsedSize * pool.ReplicateSize,
+				PhySize:     pool.PhySize,
+				UsedSize:    pool.PhyUsedSize,
 				OverRate:    pool.ThinProvisioning,
-				OverUsed:    pool.VolumeSizeSum * pool.ReplicateSize,
-				OverPhySize: pool.PhySize * pool.ReplicateSize * pool.ThinProvisioning,
+				OverUsed:    pool.VolumeSizeSum,
+				OverPhySize: pool.PhySize * pool.ThinProvisioning,
 			}
 		}
 		storageData.PhySize = phySize
 		storageData.DataSize = dataSize
 		storageData.UsedSize = usedSize
-		storageData.UnusedSize = phySize - usedSize
+		storageData.UnusedSize = dataSize - usedSize
 		storageData.PoolData = poolData
 	}
 
 	c.JSON(http.StatusOK, ResourceStatisticsResponse{
 		HyperCount:       hyperCount,
+		FreeHyperCount:   freeHyperCount,
+		UsedHyperCount:   usedHyperCount,
 		ZoneCount:        zoneCount,
+		CpuTotal:         cpuTotal,
+		CpuUsed:          cpuUsed,
+		CpuFree:          cpuFree,
 		InstanceCount:    instanceCount,
 		InstanceByStatus: instanceByStatus,
 		StorageData:      storageData,

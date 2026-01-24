@@ -144,12 +144,7 @@ func (a *HyperAdapter) List(c *gin.Context, req *ResourceQueryRequest) (interfac
 	// 构建响应
 	hyperResponses := make([]*HyperResponse, len(hypers))
 	for i, hyper := range hypers {
-		hyperResp := a.getHyperResponse(ctx, hyper)
-		if err != nil {
-			logger.Errorf("Failed to create hyper response: %v", err)
-			return nil, err
-		}
-		hyperResponses[i] = hyperResp
+		hyperResponses[i] = a.getHyperResponse(ctx, hyper)
 	}
 
 	// 返回响应

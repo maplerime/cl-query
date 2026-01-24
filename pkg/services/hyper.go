@@ -9,10 +9,10 @@ package services
 
 import (
 	"context"
+	"web/src/dbs"
 	"web/src/model"
 
 	. "github.com/maplerime/cl-query/pkg/common"
-	"github.com/maplerime/cl-query/pkg/dbs"
 )
 
 type HyperAdmin struct{}
@@ -31,10 +31,29 @@ func (a *HyperAdmin) List(ctx context.Context, offset, limit int64, order, query
 	if err = db.Model(&model.Hyper{}).Where("hostid >= 0").Where(query).Count(&total).Error; err != nil {
 		return 0, nil, NewCLError(ErrSQLSyntaxError, "Failed to count hypervisors", err)
 	}
-	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
-	if err = db.Preload("Zone").Where("hostid >= 0").Where(query).Find(&hypers).Error; err != nil {
-		return 0, nil, NewCLError(ErrSQLSyntaxError, "Failed to retrieve hypervisors", err)
+
+	if order == "cpu" {
+		order = "resources.cpu"
+	} else if order == "-cpu" {
+		order = "-resources.cpu"
 	}
+
+	baseQuery := db.Model(&model.Hyper{}).
+		Select("hypers.*").
+		Joins("LEFT JOIN resources ON hypers.hostid = resources.hostid").
+		Where("hypers.hostid >= 0").
+		Where(query).
+		Preload("Zone").
+		Offset(offset).
+		Limit(limit)
+
+	resultQuery := dbs.Sortby(baseQuery, order)
+	if err = resultQuery.Find(&hypers).Error; err != nil {
+		err = NewCLError(ErrSQLSyntaxError, "Database failed to query hypers", err)
+		return
+	}
+
+	// 获取 Resource 数据
 	db = db.Offset(0).Limit(-1)
 	for _, hyper := range hypers {
 		hyper.Resource = &model.Resource{}

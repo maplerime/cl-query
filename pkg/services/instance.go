@@ -66,27 +66,10 @@ type InstancesData struct {
 	IsAdmin   bool              `json:"is_admin"`
 }
 
-func (a *InstanceAdmin) GetHyperGroup(ctx context.Context, zoneID int64, skipHyper int32) (hyperGroup string, err error) {
-	ctx, db := GetContextDB(ctx)
-	hypers := []*model.Hyper{}
-	where := fmt.Sprintf("zone_id = %d and status = 1 and hostid <> %d", zoneID, skipHyper)
-	if err = db.Where(where).Find(&hypers).Error; err != nil {
-		logger.Error("Hypers query failed", err)
-		return "", NewCLError(ErrSQLSyntaxError, "Failed to query hypervisors", err)
-	}
-	if len(hypers) == 0 {
-		logger.Error("No qualified hypervisor")
-		return "", NewCLError(ErrNoQualifiedHypervisor, "No qualified hypervisor found", nil)
-	}
-	hyperGroup = fmt.Sprintf("group-zone-%d", zoneID)
-	for i, h := range hypers {
-		if i == 0 {
-			hyperGroup = fmt.Sprintf("%s:%d", hyperGroup, h.Hostid)
-		} else {
-			hyperGroup = fmt.Sprintf("%s,%d", hyperGroup, h.Hostid)
-		}
-	}
-	return
+type HyperStatusCount struct {
+	Hyper  int32  `gorm:"column:hyper" json:"hyper"`
+	Status string `gorm:"column:status" json:"status"`
+	Count  int64  `gorm:"column:count" json:"count"`
 }
 
 func (a *InstanceAdmin) Get(ctx context.Context, id int64) (instance *model.Instance, err error) {
@@ -170,7 +153,7 @@ func (a *InstanceAdmin) GetInstanceByUUID(ctx context.Context, uuID string) (ins
 	memberShip := GetMemberShip(ctx)
 	where := memberShip.GetWhere()
 	instance = &model.Instance{}
-	if err = db.Preload("Volumes").Preload("Image").Preload("Zone").Preload("Flavor").Preload("Keys").Where(where).Where("uuid = ?", uuID).Take(instance).Error; err != nil {
+	if err = db.Preload("Volumes").Preload("Image").Preload("Flavor").Preload("Keys").Where(where).Where("uuid = ?", uuID).Take(instance).Error; err != nil {
 		logger.Errorf("Failed to query instance, %v", err)
 		return nil, NewCLError(ErrInstanceNotFound, "Instance not found", err)
 	}
@@ -198,74 +181,6 @@ func (a *InstanceAdmin) GetInstanceByUUID(ctx context.Context, uuID string) (ins
 		err = NewCLError(ErrPermissionDenied, "Not authorized to read the instance", nil)
 		return
 	}
-	return
-}
-
-func (a *InstanceAdmin) List(ctx context.Context, offset, limit int64, order, query string) (total int64, instances []*model.Instance, err error) {
-	memberShip := GetMemberShip(ctx)
-	permit := memberShip.CheckPermission(model.Reader)
-	if !permit {
-		logger.Error("Not authorized for this operation")
-		err = NewCLError(ErrPermissionDenied, "Not authorized for this operation", nil)
-		return
-	}
-	db := DB()
-	if limit == 0 {
-		limit = 16
-	}
-
-	if order == "" {
-		order = "created_at"
-	}
-	logger.Debugf("The query in admin console is %s", query)
-
-	where := memberShip.GetWhere()
-	instances = []*model.Instance{}
-	if err = db.Model(&model.Instance{}).Where(where).Where(query).Count(&total).Error; err != nil {
-		err = NewCLError(ErrSQLSyntaxError, "Failed to count instance(s)", err)
-		return
-	}
-	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
-	if err = db.Preload("Volumes").Preload("Image").Preload("Zone").Preload("Flavor").Preload("Keys").Where(where).Where(query).Find(&instances).Error; err != nil {
-		logger.Errorf("Failed to query instance(s), %v", err)
-		err = NewCLError(ErrSQLSyntaxError, "Failed to query instance(s)", err)
-		return
-	}
-	db = db.Offset(0).Limit(-1)
-	for _, instance := range instances {
-		if err = db.Preload("SiteSubnets").Preload("SiteSubnets.Group").Preload("SecurityGroups").Preload("Address").Preload("Address.Subnet").Preload("SecondAddresses", func(db *gorm.DB) *gorm.DB {
-			return db.Order("addresses.updated_at")
-		}).Preload("SecondAddresses.Subnet").Where("instance = ?", instance.ID).Find(&instance.Interfaces).Error; err != nil {
-			logger.Errorf("Failed to query interfaces %v", err)
-			err = NewCLError(ErrSQLSyntaxError, "Failed to query interfaces", err)
-			return
-		}
-
-		if err = db.Preload("Group").Preload("Subnet").Order("updated_at").Where("instance_id = ?", instance.ID).Find(&instance.FloatingIps).Error; err != nil {
-			logger.Errorf("Failed to query floating ip(s), %v", err)
-			err = NewCLError(ErrSQLSyntaxError, "Failed to query floating ip(s) for instance", err)
-			return
-		}
-
-		if instance.RouterID > 0 {
-			instance.Router = &model.Router{Model: model.Model{ID: instance.RouterID}}
-			if err = db.Take(instance.Router).Error; err != nil {
-				logger.Errorf("Failed to query floating ip(s), %v", err)
-				err = NewCLError(ErrRouterNotFound, "Failed to query router for instance", err)
-				return
-			}
-		}
-		permit := memberShip.CheckPermission(model.Admin)
-		if permit {
-			instance.OwnerInfo = &model.Organization{Model: model.Model{ID: instance.Owner}}
-			if err = db.Take(instance.OwnerInfo).Error; err != nil {
-				logger.Error("Failed to query owner info", err)
-				err = NewCLError(ErrOwnerNotFound, "Failed to query owner info for instance", err)
-				return
-			}
-		}
-	}
-
 	return
 }
 
@@ -325,11 +240,6 @@ func (a *InstanceAdmin) GetInstanceCount(ctx context.Context, query string) (cou
 
 func (a *InstanceAdmin) GetInstanceCountByHyper(ctx context.Context, hostID int32) (count int64, err error) {
 	query := fmt.Sprintf("hyper=%d", hostID)
-	return a.GetInstanceCount(ctx, query)
-}
-
-func (a *InstanceAdmin) GetInstanceCountByZone(ctx context.Context, zoneID int64) (count int64, err error) {
-	query := fmt.Sprintf("zone_id=%d", zoneID)
 	return a.GetInstanceCount(ctx, query)
 }
 
@@ -409,7 +319,6 @@ func (a *InstanceAdmin) ListWithJoins(ctx context.Context, offset, limit int64, 
 		Joins("LEFT JOIN addresses AS addresses2 ON addresses2.second_interface = interfaces.id AND addresses2.deleted_at IS NULL").
 		Joins("LEFT JOIN floating_ips ON floating_ips.instance_id = instances.id AND floating_ips.deleted_at IS NULL").
 		Joins("LEFT JOIN secgroup_ifaces ON secgroup_ifaces.interface_id = interfaces.id").
-		Joins("LEFT JOIN security_groups ON security_groups.id = secgroup_ifaces.security_group_id AND security_groups.deleted_at IS NULL").
 		Joins("LEFT JOIN subnets AS site_subnets ON site_subnets.interface = interfaces.id AND site_subnets.deleted_at IS NULL").
 		Joins("LEFT JOIN addresses AS site_addresses ON site_addresses.subnet_id = site_subnets.id AND site_addresses.deleted_at IS NULL")
 
@@ -438,7 +347,6 @@ func (a *InstanceAdmin) ListWithJoins(ctx context.Context, offset, limit int64, 
 	if err = joinDB.
 		Preload("Volumes").
 		Preload("Image").
-		Preload("Zone").
 		Preload("Flavor").
 		Preload("Router").
 		Preload("Interfaces", func(db *gorm.DB) *gorm.DB {
@@ -555,49 +463,29 @@ func (a *InstanceAdmin) SumMemory(ctx context.Context) (total int64, err error) 
 	return result.Total, nil
 }
 
-func (a *InstanceAdmin) GetStatusStatistics(ctx context.Context) (total int64, statusCounts map[string]int64, err error) {
+func (a *InstanceAdmin) GetHyperStatusCounts(ctx context.Context) (data []*HyperStatusCount, err error) {
 	memberShip := GetMemberShip(ctx)
 	permit := memberShip.CheckPermission(model.Reader)
 	if !permit {
 		logger.Error("Not authorized for this operation")
-		return 0, nil, NewCLError(ErrPermissionDenied, "Not authorized for this operation", nil)
+		return nil, NewCLError(ErrPermissionDenied, "Not authorized for this operation", nil)
 	}
 
 	_, db := GetContextDB(ctx)
 	where := memberShip.GetWhere()
 
-	var results []struct {
-		Status string `gorm:"column:status"`
-		Count  int64  `gorm:"column:count"`
-	}
+	data = make([]*HyperStatusCount, 0)
 
 	if err = db.Model(&model.Instance{}).
-		Select("status, COUNT(*) as count").
+		Select("hyper, status, COUNT(*) as count").
 		Where(where).
-		Group("status").
-		Scan(&results).Error; err != nil {
+		Group("hyper, status").
+		Scan(&data).Error; err != nil {
 		logger.Errorf("Failed to get instance status statistics: %v", err)
 		err = NewCLError(ErrSQLSyntaxError, "Failed to get instance status statistics", err)
 		return
 	}
 
-	// init statusCounts map with all statuses set to 0
-	statusCounts = map[string]int64{
-		"pending":      0,
-		"running":      0,
-		"shut_off":     0,
-		"paused":       0,
-		"migrating":    0,
-		"reinstalling": 0,
-		"resizing":     0,
-		"deleting":     0,
-	}
-
-	// Aggregate counts
-	total = 0
-	for _, result := range results {
-		statusCounts[result.Status] = result.Count
-		total += result.Count
-	}
 	return
+
 }

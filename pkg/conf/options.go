@@ -107,4 +107,6 @@ type WdsConfig struct {
 	Endpoint string
 	Username string
 	Password string
+	Region   string
+	Az       string
 }

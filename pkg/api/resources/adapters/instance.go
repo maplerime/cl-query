@@ -56,6 +56,7 @@ type InstanceListResponse struct {
 type InstanceFilters struct {
 	Hostname        string   `json:"hostname,omitempty"`
 	Status          string   `json:"status,omitempty" binding:"omitempty"`
+	Statuses        []string `json:"statuses,omitempty" binding:"omitempty"`
 	UUID            string   `json:"uuid,omitempty" binding:"omitempty,uuid"`
 	UUIDs           []string `json:"uuids,omitempty" binding:"omitempty,dive,uuid"`
 	VpcID           string   `json:"vpc_id,omitempty" binding:"omitempty,uuid"`
@@ -118,6 +119,12 @@ func (a *InstanceAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interf
 		logger.Debugf("Added status filter: %s", filters.Status)
 	}
 
+	// 状态批量查询
+	if filters.Statuses != nil && len(filters.Statuses) > 0 {
+		conditions = append(conditions, fmt.Sprintf("instances.status IN ('%s')", strings.Join(filters.Statuses, "','")))
+		logger.Debugf("Added status batch filter: %v", filters.Statuses)
+	}
+
 	// uuids查询
 	if filters.UUIDs != nil {
 		if len(filters.UUIDs) > 0 {
@@ -156,7 +163,13 @@ func (a *InstanceAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interf
 
 	// 安全组查询
 	if filters.SecurityGroupID != "" {
-		conditions = append(conditions, fmt.Sprintf("secgroup_ifaces.security_group_id = '%s'", filters.SecurityGroupID))
+		// 转化为安全组的id
+		secgroup := &model.SecurityGroup{}
+		secgroup, err = a.secgroupService.GetSecgroupByUUID(ctx, filters.SecurityGroupID)
+		if err != nil {
+			return
+		}
+		conditions = append(conditions, fmt.Sprintf("secgroup_ifaces.security_group_id = %d", secgroup.ID))
 		logger.Debugf("Added security group filter: %s", filters.SecurityGroupID)
 	}
 
