@@ -177,10 +177,10 @@ func (api *StatisticsAPI) Resources(c *gin.Context) {
 					cpuFree += hyper.Resource.Cpu
 					cpuTotal += hyper.Resource.CpuTotal
 					// 挨个hyper统计已用和空闲计算节点,并追加到zone中
-					usedHyper := float64(hyper.Resource.CpuTotal-hyper.Resource.Cpu) / float64(hyper.CpuOverRate) / 88
-					freeHyper := float64(hyper.Resource.Cpu) / float64(hyper.CpuOverRate) / 88
+					usedHyper := float64(hyper.Resource.CpuTotal-hyper.Resource.Cpu) / float64(hyper.CpuOverRate) / 88 // 3/8 = 0.03409091
+					freeHyper := float64(hyper.Resource.Cpu) / float64(hyper.CpuOverRate) / 88                         // 8/88 +5/88 = 0.14772727
 					zoneData[i].UsedHyperCount += usedHyper
-					zoneData[i].UsedHyperCount += freeHyper
+					zoneData[i].FreeHyperCount += freeHyper
 				}
 				// 统计实例数量
 				if counts, exist := countsMap[hyper.Hostid]; exist {
