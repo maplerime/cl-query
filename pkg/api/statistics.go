@@ -54,8 +54,8 @@ type StorageData struct {
 type ZoneData struct {
 	*BaseReference
 	HyperCount       int64            `json:"hyper_count"`        // 计算节点总数
-	FreeHyperCount   float32          `json:"free_hyper_count"`   // 空闲计算节点数
-	UsedHyperCount   float32          `json:"used_hyper_count"`   // 已用计算节点数
+	FreeHyperCount   float64          `json:"free_hyper_count"`   // 空闲计算节点数
+	UsedHyperCount   float64          `json:"used_hyper_count"`   // 已用计算节点数
 	CpuTotal         int64            `json:"cpu_total"`          // CPU总量
 	CpuUsed          int64            `json:"cpu_used"`           // CPU使用
 	CpuFree          int64            `json:"cpu_free"`           // CPU空闲
@@ -66,8 +66,8 @@ type ZoneData struct {
 type ResourceStatisticsResponse struct {
 	ZoneCount        int64            `json:"zone_count"`         // 计算节点分组数
 	HyperCount       int64            `json:"hyper_count"`        // 计算节点总数
-	FreeHyperCount   float32          `json:"free_hyper_count"`   // 空闲计算节点数
-	UsedHyperCount   float32          `json:"used_hyper_count"`   // 已用计算节点数
+	FreeHyperCount   float64          `json:"free_hyper_count"`   // 空闲计算节点数
+	UsedHyperCount   float64          `json:"used_hyper_count"`   // 已用计算节点数
 	CpuTotal         int64            `json:"cpu_total"`          // CPU总量
 	CpuUsed          int64            `json:"cpu_used"`           // CPU使用
 	CpuFree          int64            `json:"cpu_free"`           // CPU空闲
@@ -147,8 +147,8 @@ func (api *StatisticsAPI) Resources(c *gin.Context) {
 		"deleting":     0,
 	}
 	zoneData := make([]*ZoneData, len(zones))
-	usedHyperCount := float32(0)
-	freeHyperCount := float32(0)
+	usedHyperCount := float64(0)
+	freeHyperCount := float64(0)
 	for i, zone := range zones {
 		zoneData[i] = &ZoneData{
 			BaseReference: &BaseReference{
@@ -177,8 +177,8 @@ func (api *StatisticsAPI) Resources(c *gin.Context) {
 					cpuFree += hyper.Resource.Cpu
 					cpuTotal += hyper.Resource.CpuTotal
 					// 挨个hyper统计已用和空闲计算节点,并追加到zone中
-					usedHyper := float32(hyper.Resource.CpuTotal-hyper.Resource.Cpu) / hyper.CpuOverRate / 88
-					freeHyper := float32(hyper.Resource.Cpu) / hyper.CpuOverRate / 88
+					usedHyper := float64(hyper.Resource.CpuTotal-hyper.Resource.Cpu) / float64(hyper.CpuOverRate) / 88
+					freeHyper := float64(hyper.Resource.Cpu) / float64(hyper.CpuOverRate) / 88
 					zoneData[i].UsedHyperCount += usedHyper
 					zoneData[i].UsedHyperCount += freeHyper
 				}
