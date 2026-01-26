@@ -63,6 +63,7 @@ type InstanceFilters struct {
 	VpcIDs          []string `json:"vpc_ids,omitempty" binding:"omitempty,dive,uuid"`
 	SecurityGroupID string   `json:"security_group_id,omitempty" binding:"omitempty,uuid"`
 	Hyper           *int32   `json:"hyper,omitempty" binding:"omitempty"`
+	Hypers          []int32  `json:"hypers,omitempty" binding:"omitempty"`
 	Keyword         string   `json:"keyword,omitempty" binding:"omitempty"`
 	AdjustRuleID    string   `json:"adjust_rule_id,omitempty" binding:"omitempty,uuid"`
 	AssignableIpID  string   `json:"assignable_ip_id,omitempty" binding:"omitempty,uuid"`
@@ -189,6 +190,26 @@ func (a *InstanceAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interf
 		}
 		conditions = append(conditions, fmt.Sprintf("instances.hyper = %d", hyper.Hostid))
 		logger.Debugf("Added hyper filter: %s", filters.Hyper)
+	}
+
+	// hypers查询
+	if len(filters.Hypers) > 0 {
+		var hyperIDs []string
+		for _, hostID := range filters.Hypers {
+			_, err = hyperAdmin.GetHyperByHostid(c.Request.Context(), hostID)
+			if err != nil {
+				logger.Errorf("Failed to get hyper by host id %d: %v", hostID, err)
+				return
+			}
+			hyperIDs = append(hyperIDs, strconv.FormatInt(int64(hostID), 10))
+		}
+
+		conditions = append(
+			conditions,
+			fmt.Sprintf("instances.hyper IN (%s)", strings.Join(hyperIDs, ",")),
+		)
+
+		logger.Debugf("Added hyper filter: %v", hyperIDs)
 	}
 
 	// 可以分配到这个IP上的实例

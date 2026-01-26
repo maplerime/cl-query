@@ -30,6 +30,7 @@ func NewStatisticsAPI() *StatisticsAPI {
 }
 
 type StoragePoolData struct {
+	MediaType   string `json:"media_type"`
 	PoolName    string `json:"pool_name"`     // 存储池名称
 	PhySize     uint64 `json:"phy_size"`      // 数据量
 	UsedSize    uint64 `json:"used_size"`     // 已使用
@@ -246,6 +247,7 @@ func (api *StatisticsAPI) Resources(c *gin.Context) {
 			usedSize += pool.PhyUsedSize
 			dataSize += pool.PhySize
 			poolData[i] = &StoragePoolData{
+				MediaType:   pool.StorageMediaType,
 				PoolName:    pool.ClusterName,
 				PhySize:     pool.PhySize,
 				UsedSize:    pool.PhyUsedSize,

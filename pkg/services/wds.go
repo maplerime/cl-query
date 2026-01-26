@@ -49,6 +49,7 @@ type WdsPoolListResponse struct {
 	Data struct {
 		TotalCount int64 `json:"totalCount"`
 		List       []struct {
+			StorageMediaType string `json:"storage_media_type"`
 			ClusterName      string `json:"cluster_name"`
 			PhySize          uint64 `json:"phy_size"`
 			PhyUsedSize      uint64 `json:"phy_used_size"`
