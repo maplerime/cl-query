@@ -30,7 +30,7 @@ func NewStatisticsAPI() *StatisticsAPI {
 }
 
 type StoragePoolData struct {
-	MediaType   string `json:"media_type"`
+	MediaType   string `json:"media_type"`    // 存储介质
 	PoolName    string `json:"pool_name"`     // 存储池名称
 	PhySize     uint64 `json:"phy_size"`      // 数据量
 	UsedSize    uint64 `json:"used_size"`     // 已使用
