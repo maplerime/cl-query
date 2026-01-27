@@ -206,16 +206,16 @@ func (api *StatisticsAPI) Resources(c *gin.Context) {
 	if err != nil {
 		logger.Errorf("Get WDS storage nodes failed: %+v", err)
 	} else {
-		// 存储节点总数
-		storageData.NodeCount = wdsServers.Data.TotalCount
 		for _, server := range wdsServers.Data.List {
 			hostname := strings.ToLower(server.HostName)
 			if strings.Contains(hostname, "nvme") {
 				// NVME存储节点数
 				storageData.NVMENodeCount++
-			} else {
+				storageData.NodeCount++
+			} else if strings.Contains(hostname, "hdd") {
 				// HDD存储节点数
 				storageData.HDDNodeCount++
+				storageData.NodeCount++
 			}
 		}
 
