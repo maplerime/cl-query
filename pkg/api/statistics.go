@@ -150,6 +150,10 @@ func (api *StatisticsAPI) Resources(c *gin.Context) {
 	usedHyperCount := float64(0)
 	freeHyperCount := float64(0)
 	for i, zone := range zones {
+		cpuCore := float64(88)
+		if zone.Name == "zone2" {
+			cpuCore = float64(256)
+		}
 		zoneData[i] = &ZoneData{
 			BaseReference: &BaseReference{
 				ID:   strconv.FormatInt(zone.ID, 10),
@@ -177,8 +181,8 @@ func (api *StatisticsAPI) Resources(c *gin.Context) {
 					cpuFree += hyper.Resource.Cpu
 					cpuTotal += hyper.Resource.CpuTotal
 					// 挨个hyper统计已用和空闲计算节点,并追加到zone中
-					usedHyper := float64(hyper.Resource.CpuTotal-hyper.Resource.Cpu) / float64(hyper.CpuOverRate) / 88 // 3/8 = 0.03409091
-					freeHyper := float64(hyper.Resource.Cpu) / float64(hyper.CpuOverRate) / 88                         // 8/88 +5/88 = 0.14772727
+					usedHyper := float64(hyper.Resource.CpuTotal-hyper.Resource.Cpu) / float64(hyper.CpuOverRate) / cpuCore
+					freeHyper := float64(hyper.Resource.Cpu) / float64(hyper.CpuOverRate) / cpuCore
 					zoneData[i].UsedHyperCount += usedHyper
 					zoneData[i].FreeHyperCount += freeHyper
 				}
