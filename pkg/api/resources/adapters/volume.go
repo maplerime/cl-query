@@ -40,6 +40,7 @@ type VolumeResponse struct {
 	IopsBurst int32          `json:"iops_burst"`
 	BpsLimit  int32          `json:"bps_limit"`
 	BpsBurst  int32          `json:"bps_burst"`
+	PoolName  string         `json:"pool_name"`
 }
 
 type VolumeListResponse struct {
@@ -65,14 +66,16 @@ type VolumeFilters struct {
 
 type VolumeAdapter struct {
 	BaseAdapter
-	service         *services.VolumeAdmin
-	instanceService *services.InstanceAdmin
+	service           *services.VolumeAdmin
+	instanceService   *services.InstanceAdmin
+	dictionaryService *services.DictionaryAdmin
 }
 
 func NewVolumeAdapter() *VolumeAdapter {
 	logger.Debug("Creating new Volume adapter")
 	return &VolumeAdapter{
-		service: &services.VolumeAdmin{},
+		service:           &services.VolumeAdmin{},
+		dictionaryService: &services.DictionaryAdmin{},
 	}
 }
 
@@ -174,9 +177,12 @@ func (a *VolumeAdapter) List(c *gin.Context, req *ResourceQueryRequest) (interfa
 		Total:  int(total),
 		Limit:  len(volumes),
 	}
+
+	poolNameMap := a.getPoolNameMap(ctx)
+
 	volumeList := make([]*VolumeResponse, volumeListResp.Limit)
 	for i, volume := range volumes {
-		volumeResp, err := a.getVolumeResponse(ctx, volume)
+		volumeResp, err := a.getVolumeResponse(ctx, volume, poolNameMap)
 		if err != nil {
 			return nil, err
 		}
@@ -197,7 +203,9 @@ func (a *VolumeAdapter) Get(c *gin.Context, id string) (interface{}, error) {
 		return nil, err
 	}
 
-	result, err := a.getVolumeResponse(ctx, volume)
+	poolNameMap := a.getPoolNameMap(ctx)
+
+	result, err := a.getVolumeResponse(ctx, volume, poolNameMap)
 	if err != nil {
 		return nil, err
 	}
@@ -206,8 +214,25 @@ func (a *VolumeAdapter) Get(c *gin.Context, id string) (interface{}, error) {
 	return result, nil
 }
 
-func (a *VolumeAdapter) getVolumeResponse(ctx context.Context, volume *model.Volume) (volumeResp *VolumeResponse, err error) {
+func (a *VolumeAdapter) getPoolNameMap(ctx context.Context) map[string]string {
+	poolNameMap := map[string]string{}
+	_, dictionaries, err := a.dictionaryService.List(ctx, 0, 10, "", "category='storage_pool'")
+	if err != nil {
+		logger.Warningf("Failed to fetch storage pool names: %v", err)
+		return poolNameMap
+	}
+	for _, d := range dictionaries {
+		poolNameMap[d.Value] = d.Name
+	}
+	return poolNameMap
+}
+
+func (a *VolumeAdapter) getVolumeResponse(ctx context.Context, volume *model.Volume, poolNameMap map[string]string) (volumeResp *VolumeResponse, err error) {
 	owner := orgAdmin.GetOrgName(ctx, volume.Owner)
+	poolName := ""
+	if volume.PoolID != "" {
+		poolName = poolNameMap[volume.PoolID]
+	}
 	volumeResp = &VolumeResponse{
 		ResourceReference: &ResourceReference{
 			ID:        volume.UUID,
@@ -226,6 +251,7 @@ func (a *VolumeAdapter) getVolumeResponse(ctx context.Context, volume *model.Vol
 		BpsLimit:  volume.BpsLimit,
 		BpsBurst:  volume.BpsBurst,
 		Booting:   volume.Booting,
+		PoolName:  poolName,
 	}
 	if volume.Instance == nil {
 		volumeResp.Instance = nil
