@@ -50,6 +50,7 @@ type ImageFilters struct {
 	UUIDs  []string `json:"uuids,omitempty" binding:"omitempty,dive,uuid"`
 	Name   string   `json:"name,omitempty"`
 	Status string   `json:"status,omitempty" binding:"omitempty"`
+	IsRescue *bool  `json:"is_rescue,omitempty"`
 }
 
 type ImageAdapter struct {
@@ -94,6 +95,16 @@ func (a *ImageAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interface
 	if filters.Status != "" {
 		conditions = append(conditions, fmt.Sprintf("status = '%s'", filters.Status))
 		logger.Debugf("Added status filter: %s", filters.Status)
+	}
+
+	// IsRescue查询
+	if filters.IsRescue != nil {
+		if *filters.IsRescue {
+			conditions = append(conditions, "is_rescue = true")
+		} else {
+			conditions = append(conditions, "is_rescue = false")
+		}
+		logger.Debugf("Added is_rescue filter: %t", *filters.IsRescue)
 	}
 
 	if len(conditions) > 0 {
