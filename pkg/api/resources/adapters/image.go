@@ -36,6 +36,7 @@ type ImageResponse struct {
 	OSVersion    string `json:"os_version"`
 	BootLoader   string `json:"boot_loader"`
 	OsFamily     string `json:"os_family"`
+	IsRescue     bool   `json:"is_rescue"`
 }
 
 type ImageListResponse struct {
@@ -180,6 +181,7 @@ func (a *ImageAdapter) getImageResponse(ctx context.Context, image *model.Image)
 		OSVersion:    image.OsVersion,
 		BootLoader:   image.BootLoader,
 		OsFamily:     image.OsFamily,
+		IsRescue:     image.IsRescue,
 	}
 	return imageResp, nil
 }
