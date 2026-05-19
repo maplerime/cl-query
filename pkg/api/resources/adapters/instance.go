@@ -373,6 +373,8 @@ func (a *InstanceAdapter) getInstanceResponse(ctx context.Context, instance *mod
 			},
 			Target:  volume.Target,
 			Booting: volume.Booting,
+			Path:    volume.Path,
+			PoolID:  volume.PoolID,
 		}
 	}
 	instanceResp.Volumes = volumes
