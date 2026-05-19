@@ -54,8 +54,7 @@ type VolumeInfoResponse struct {
 	*ResourceReference
 	Target  string `json:"target"`
 	Booting bool   `json:"booting"`
-	Path    string `json:"path"`
-	PoolID  string `json:"pool_id"`
+	Driver  string `json:"driver"`
 }
 
 type VolumeFilters struct {
