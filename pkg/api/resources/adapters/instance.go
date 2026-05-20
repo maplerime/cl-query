@@ -373,7 +373,7 @@ func (a *InstanceAdapter) getInstanceResponse(ctx context.Context, instance *mod
 			},
 			Target:  volume.Target,
 			Booting: volume.Booting,
-			Driver:  volume.GetVolumeDriver(),
+			PoolID:  volume.PoolID,
 		}
 	}
 	instanceResp.Volumes = volumes

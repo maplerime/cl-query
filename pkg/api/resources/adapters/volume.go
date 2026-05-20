@@ -40,6 +40,7 @@ type VolumeResponse struct {
 	IopsBurst int32          `json:"iops_burst"`
 	BpsLimit  int32          `json:"bps_limit"`
 	BpsBurst  int32          `json:"bps_burst"`
+	PoolID    string         `json:"pool_id"`
 	PoolName  string         `json:"pool_name"`
 }
 
@@ -54,7 +55,7 @@ type VolumeInfoResponse struct {
 	*ResourceReference
 	Target  string `json:"target"`
 	Booting bool   `json:"booting"`
-	Driver  string `json:"driver"`
+	PoolID  string `json:"pool_id"`
 }
 
 type VolumeFilters struct {
@@ -252,6 +253,7 @@ func (a *VolumeAdapter) getVolumeResponse(ctx context.Context, volume *model.Vol
 		BpsLimit:  volume.BpsLimit,
 		BpsBurst:  volume.BpsBurst,
 		Booting:   volume.Booting,
+		PoolID:    volume.PoolID,
 		PoolName:  poolName,
 	}
 	if volume.Instance == nil {
