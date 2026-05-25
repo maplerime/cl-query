@@ -44,6 +44,7 @@ type SubnetFilters struct {
 	GroupID   string   `json:"group_id,omitempty"`    // 组ID
 	Types     []string `json:"types,omitempty"`       // 子网类型
 	NoGroup   bool     `json:"no_group,omitempty"`    // 是否不属于任何组
+	Vlan      *int64   `json:"vlan,omitempty"`        // VLAN ID
 }
 
 type SubnetResponse struct {
@@ -139,6 +140,12 @@ func (a *SubnetAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interfac
 	if filters.NoGroup {
 		conditions = append(conditions, "subnets.group_id = 0")
 		logger.Debug("Added no_group filter")
+	}
+
+	// Vlan
+	if filters.Vlan != nil {
+		conditions = append(conditions, fmt.Sprintf("subnets.vlan = %d", *filters.Vlan))
+		logger.Debugf("Added vlan filter: %d", *filters.Vlan)
 	}
 
 	if len(filters.Types) > 0 {
