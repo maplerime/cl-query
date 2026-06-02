@@ -39,7 +39,13 @@ type StoragePoolData struct {
 	OverUsed    uint64 `json:"over_used"`     // 超分后已使用
 }
 
+type StorageNodeData struct {
+	ID       string `json:"id"`
+	HostName string `json:"host_name"`
+}
+
 type StorageData struct {
+	Nodes         []*StorageNodeData `json:"nodes"`           // 存储节点列表
 	NodeCount     int64              `json:"node_count"`      // 存储节点数
 	HDDNodeCount  int64              `json:"hdd_node_count"`  // HDD存储节点数
 	NVMENodeCount int64              `json:"nvme_node_count"` // NVME存储节点数
@@ -210,7 +216,13 @@ func (api *StatisticsAPI) Resources(c *gin.Context) {
 	if err != nil {
 		logger.Errorf("Get WDS storage nodes failed: %+v", err)
 	} else {
+		storageData.Nodes = make([]*StorageNodeData, 0, len(wdsServers.Data.List))
 		for _, server := range wdsServers.Data.List {
+			storageData.Nodes = append(storageData.Nodes, &StorageNodeData{
+				ID:       server.ID,
+				HostName: server.HostName,
+			})
+
 			hostname := strings.ToLower(server.HostName)
 			if strings.Contains(hostname, "nvme") {
 				// NVME存储节点数
