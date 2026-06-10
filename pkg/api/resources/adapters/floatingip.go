@@ -59,13 +59,14 @@ type FloatingIpFilters struct {
 
 type FloatingIpResponse struct {
 	*ResourceReference
-	PublicIp        string           `json:"public_ip"`
-	TargetInterface *TargetInterface `json:"target_interface,omitempty"`
-	VPC             *BaseReference   `json:"vpc,omitempty"`
-	Inbound         int32            `json:"inbound"`
-	Outbound        int32            `json:"outbound"`
-	Group           *BaseReference   `json:"group,omitempty"`
-	Subnet          *SiteSubnetInfo  `json:"subnet,omitempty"`
+	PublicIp         string              `json:"public_ip"`
+	TargetInterface  *TargetInterface    `json:"target_interface,omitempty"`
+	VPC              *BaseReference      `json:"vpc,omitempty"`
+	Inbound          int32               `json:"inbound"`
+	Outbound         int32               `json:"outbound"`
+	Group            *BaseReference      `json:"group,omitempty"`
+	Subnet           *SiteSubnetInfo     `json:"subnet,omitempty"`
+	SubnetDictionary *DictionaryResponse `json:"subnet_dictionary,omitempty"`
 }
 
 type FloatingIpListResponse struct {
@@ -272,6 +273,21 @@ func (a *FloatingIPAdapter) getFloatingIpResponse(ctx context.Context, floatingI
 			floatingIpResp.Subnet.Group = &BaseReference{
 				ID:   floatingIp.Subnet.Group.UUID,
 				Name: floatingIp.Subnet.Group.Name,
+			}
+			// 字典信息（含地区/线路）：来自子网所属 ip_group 关联的字典，供 Octopus 反查后按地区+线路过滤候选子网。
+			if dict := floatingIp.Subnet.Group.DictionaryType; dict != nil {
+				floatingIpResp.SubnetDictionary = &DictionaryResponse{
+					ResourceReference: &ResourceReference{
+						ID:   dict.UUID,
+						Name: dict.Name,
+					},
+					Category:  dict.Category,
+					Value:     dict.Value,
+					ShortName: dict.ShortName,
+					SubType1:  dict.SubType1,
+					SubType2:  dict.SubType2,
+					SubType3:  dict.SubType3,
+				}
 			}
 		}
 	}

@@ -27,8 +27,12 @@ import (
 
 type DictionaryResponse struct {
 	*ResourceReference
-	Category string `json:"category"`
-	Value    string `json:"value"`
+	Category  string `json:"category"`
+	Value     string `json:"value"`
+	ShortName string `json:"short_name"`
+	SubType1  string `json:"sub_type1"`
+	SubType2  string `json:"sub_type2"`
+	SubType3  string `json:"sub_type3"`
 }
 
 type DictionaryListResponse struct {
@@ -152,8 +156,12 @@ func (a *DictionaryAdapter) getDictionaryResponse(ctx context.Context, d *model.
 			CreatedAt: d.CreatedAt.Format(TimeStringForMat),
 			UpdatedAt: d.UpdatedAt.Format(TimeStringForMat),
 		},
-		Category: d.Category,
-		Value:    d.Value,
+		Category:  d.Category,
+		Value:     d.Value,
+		ShortName: d.ShortName,
+		SubType1:  d.SubType1,
+		SubType2:  d.SubType2,
+		SubType3:  d.SubType3,
 	}
 	return resp, nil
 }

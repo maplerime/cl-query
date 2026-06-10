@@ -124,7 +124,7 @@ func (a *FloatingIpAdmin) List(ctx context.Context, offset, limit int64, order, 
 		return 0, nil, NewCLError(ErrSQLSyntaxError, "Failed to count floating IPs", err)
 	}
 	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
-	if err = db.Preload("Group").Preload("Instance").Preload("Instance.Zone").Preload("Interface").Preload("Interface.Address").Preload("Interface.Address.Subnet").Preload("Subnet").Preload("Subnet.Group").Where(where).Where(query).Where(intQuery).Find(&floatingIps).Error; err != nil {
+	if err = db.Preload("Group").Preload("Instance").Preload("Instance.Zone").Preload("Interface").Preload("Interface.Address").Preload("Interface.Address.Subnet").Preload("Subnet").Preload("Subnet.Group").Preload("Subnet.Group.DictionaryType").Where(where).Where(query).Where(intQuery).Find(&floatingIps).Error; err != nil {
 		logger.Error("DB failed to query floating ip(s), %v", err)
 		return 0, nil, NewCLError(ErrSQLSyntaxError, "Failed to query floating IPs", err)
 	}

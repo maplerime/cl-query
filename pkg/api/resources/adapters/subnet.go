@@ -45,6 +45,8 @@ type SubnetFilters struct {
 	Types     []string `json:"types,omitempty"`       // 子网类型
 	NoGroup   bool     `json:"no_group,omitempty"`    // 是否不属于任何组
 	Vlan      *int64   `json:"vlan,omitempty"`        // VLAN ID
+	SubType1  string   `json:"sub_type1,omitempty"`   // 地区（dictionaries.sub_type1）
+	SubType2  string   `json:"sub_type2,omitempty"`   // 线路（dictionaries.sub_type2）
 }
 
 type SubnetResponse struct {
@@ -146,6 +148,25 @@ func (a *SubnetAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interfac
 	if filters.Vlan != nil {
 		conditions = append(conditions, fmt.Sprintf("subnets.vlan = %d", *filters.Vlan))
 		logger.Debugf("Added vlan filter: %d", *filters.Vlan)
+	}
+
+	// 地区(sub_type1)+线路(sub_type2)：经 dictionaries -> ip_groups -> subnets 反查过滤。
+	// 各自独立生效；都传则 AND；匹配不到字典时子查询为空集，自然返回空列表（无 fallback）。
+	if filters.SubType1 != "" || filters.SubType2 != "" {
+		var dictConds []string
+		if filters.SubType1 != "" {
+			dictConds = append(dictConds, fmt.Sprintf("d.sub_type1 = '%s'", filters.SubType1))
+		}
+		if filters.SubType2 != "" {
+			dictConds = append(dictConds, fmt.Sprintf("d.sub_type2 = '%s'", filters.SubType2))
+		}
+		subQuery := fmt.Sprintf(
+			"subnets.group_id IN (SELECT ig.id FROM ip_groups ig "+
+				"JOIN dictionaries d ON ig.type_id = d.id "+
+				"WHERE ig.type = 'system' AND %s)",
+			strings.Join(dictConds, " AND "))
+		conditions = append(conditions, subQuery)
+		logger.Debugf("Added sub_type filter: %s", subQuery)
 	}
 
 	if len(filters.Types) > 0 {
