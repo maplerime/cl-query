@@ -195,7 +195,7 @@ func (a *WdsAdmin) Request(method, path string, payload any) (body []byte, err e
 		logger.Errorf("Read response body failed: %+v", err)
 		return
 	}
-	logger.Debugf("wds response body: %s", string(body))
+	//logger.Debugf("wds response body: %s", string(body))
 	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusNoContent {
 		logger.Errorf("Request Status: %s", response.Status)
 		var wdsError struct {
