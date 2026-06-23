@@ -70,7 +70,7 @@ setup:
 	go get github.com/gin-gonic/gin@v1.10.0
 	go get github.com/swaggo/files@v1.0.1
 	go get github.com/PuerkitoBio/purell@v1.1.1
-	go get github.com/spf13/afero@v1.11.0
+	go get github.com/spf13/afero@v1.15.0
 	go get github.com/felixge/fgprof@v0.9.3
 	go install golang.org/x/tools/cmd/goimports@latest
 
