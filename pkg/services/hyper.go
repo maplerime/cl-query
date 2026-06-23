@@ -9,11 +9,23 @@ package services
 
 import (
 	"context"
+	"strings"
 	"web/src/dbs"
 	"web/src/model"
 
 	. "github.com/maplerime/cl-query/pkg/common"
 )
+
+const freeHugepageExpr = "(resources.hugepage_size_kb * (resources.hugepages2_m_free + resources.hugepages1_g_free))"
+
+// hyperOrderFields 将 API 排序字段名映射到基于 LEFT JOIN resources 的 SQL 表达式。
+var hyperOrderFields = map[string]string{
+	"cpu":          "resources.cpu",
+	"memory":       "resources.memory",
+	"load_avg_5m":  "resources.load_avg5m",
+	"cpu_idle_pct": "resources.cpu_idle_pct",
+	"hugepage":     freeHugepageExpr,
+}
 
 type HyperAdmin struct{}
 
@@ -32,10 +44,16 @@ func (a *HyperAdmin) List(ctx context.Context, offset, limit int64, order, query
 		return 0, nil, NewCLError(ErrSQLSyntaxError, "Failed to count hypervisors", err)
 	}
 
-	if order == "cpu" {
-		order = "resources.cpu"
-	} else if order == "-cpu" {
-		order = "-resources.cpu"
+	if order != "" {
+		desc := strings.HasPrefix(order, "-")
+		key := strings.TrimPrefix(order, "-")
+		if expr, ok := hyperOrderFields[key]; ok {
+			if desc {
+				order = "-" + expr
+			} else {
+				order = expr
+			}
+		}
 	}
 
 	baseQuery := db.Model(&model.Hyper{}).
