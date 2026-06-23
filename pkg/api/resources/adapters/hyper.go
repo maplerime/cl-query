@@ -26,29 +26,36 @@ import (
 )
 
 type HyperResponse struct {
-	Hostid        int32   `json:"hostid"`
-	Hostname      string  `json:"hostname"`
-	Status        int32   `json:"status"`
-	StatusName    string  `json:"status_name"`
-	Parentid      int32   `json:"parentid"`
-	Children      int32   `json:"children"`
-	HostIP        string  `json:"host_ip"`
-	RouteIP       string  `json:"route_ip"`
-	VirtType      string  `json:"virt_type"`
-	CpuOverRate   float32 `json:"cpu_over_rate"`
-	MemOverRate   float32 `json:"mem_over_rate"`
-	DiskOverRate  float32 `json:"disk_over_rate"`
-	ZoneID        int64   `json:"zone_id"`
-	ZoneName      string  `json:"zone_name"`
-	ZoneRemark    string  `json:"zone_remark"`
-	Remark        string  `json:"remark"`
-	Cpu           int64   `json:"cpu"`
-	Memory        int64   `json:"memory"`
-	Disk          int64   `json:"disk"`
-	CpuTotal      int64   `json:"cpu_total"`
-	MemoryTotal   int64   `json:"memory_total"`
-	DiskTotal     int64   `json:"disk_total"`
-	InstanceCount int64   `json:"instance_count"`
+	Hostid          int32   `json:"hostid"`
+	Hostname        string  `json:"hostname"`
+	Status          int32   `json:"status"`
+	StatusName      string  `json:"status_name"`
+	Parentid        int32   `json:"parentid"`
+	Children        int32   `json:"children"`
+	HostIP          string  `json:"host_ip"`
+	RouteIP         string  `json:"route_ip"`
+	VirtType        string  `json:"virt_type"`
+	CpuOverRate     float32 `json:"cpu_over_rate"`
+	MemOverRate     float32 `json:"mem_over_rate"`
+	DiskOverRate    float32 `json:"disk_over_rate"`
+	ZoneID          int64   `json:"zone_id"`
+	ZoneName        string  `json:"zone_name"`
+	ZoneRemark      string  `json:"zone_remark"`
+	Remark          string  `json:"remark"`
+	Cpu             int64   `json:"cpu"`
+	Memory          int64   `json:"memory"`
+	Disk            int64   `json:"disk"`
+	CpuTotal        int64   `json:"cpu_total"`
+	MemoryTotal     int64   `json:"memory_total"`
+	DiskTotal       int64   `json:"disk_total"`
+	InstanceCount   int64   `json:"instance_count"`
+	Hugepages2MFree int64   `json:"hugepages_2m_free"`
+	Hugepages1GFree int64   `json:"hugepages_1g_free"`
+	HugepageSizeKB  int64   `json:"hugepage_size_kb"`
+	LoadAvg1m       float64 `json:"load_avg_1m"`
+	LoadAvg5m       float64 `json:"load_avg_5m"`
+	LoadAvg15m      float64 `json:"load_avg_15m"`
+	CpuIdlePct      float64 `json:"cpu_idle_pct"`
 }
 
 type HyperListResponse struct {
@@ -207,6 +214,13 @@ func (a *HyperAdapter) getHyperResponse(ctx context.Context, hyper *model.Hyper)
 		resp.CpuTotal = hyper.Resource.CpuTotal
 		resp.MemoryTotal = hyper.Resource.MemoryTotal / (1024 * 1024)    // Convert KB to GB
 		resp.DiskTotal = hyper.Resource.DiskTotal / (1024 * 1024 * 1024) // Convert B to GB
+		resp.Hugepages2MFree = hyper.Resource.Hugepages2MFree
+		resp.Hugepages1GFree = hyper.Resource.Hugepages1GFree
+		resp.HugepageSizeKB = hyper.Resource.HugepageSizeKB
+		resp.LoadAvg1m = hyper.Resource.LoadAvg1m
+		resp.LoadAvg5m = hyper.Resource.LoadAvg5m
+		resp.LoadAvg15m = hyper.Resource.LoadAvg15m
+		resp.CpuIdlePct = hyper.Resource.CpuIdlePct
 	}
 
 	// VM Count
