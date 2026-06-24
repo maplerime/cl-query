@@ -212,24 +212,6 @@ func (a *InstanceAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interf
 		logger.Debugf("Added hyper filter: %v", hyperIDs)
 	}
 
-	// 可以分配到这个IP上的实例
-	if filters.AssignableIpID != "" {
-		ip := &model.FloatingIp{}
-		ip, err = a.floatingIpService.GetFloatingIpByUUID(ctx, filters.AssignableIpID)
-		if err != nil {
-			return
-		}
-		if ip.Subnet != nil && ip.Subnet.Group != nil {
-			subnetGroup := ip.Subnet.Group
-			condition := fmt.Sprintf(`(
-				(floating_ips.id IS NOT NULL AND fip_subnet.group_id = %d) OR
-				floating_ips.id IS NULL
-			)`, subnetGroup.ID)
-			conditions = append(conditions, condition)
-			logger.Debugf("Added assignable IP filter: instances with floating IP in group %d or no floating IP", subnetGroup.ID)
-		}
-	}
-
 	// 关键字查询
 	if filters.Keyword != "" {
 		keywordCondition := fmt.Sprintf(`(

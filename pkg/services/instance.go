@@ -311,26 +311,31 @@ func (a *InstanceAdmin) ListWithJoins(ctx context.Context, offset, limit int64, 
 	}
 	instances = []*model.Instance{}
 
-	// 构建基础JOIN查询
-	joinDB := db.Model(&model.Instance{}).
-		Joins("LEFT JOIN organizations ON organizations.id = instances.owner").
-		Joins("LEFT JOIN interfaces ON interfaces.instance = instances.id AND interfaces.deleted_at IS NULL").
-		Joins("LEFT JOIN addresses ON addresses.interface = interfaces.id AND addresses.deleted_at IS NULL").
-		Joins("LEFT JOIN addresses AS addresses2 ON addresses2.second_interface = interfaces.id AND addresses2.deleted_at IS NULL").
-		Joins("LEFT JOIN floating_ips ON floating_ips.instance_id = instances.id AND floating_ips.deleted_at IS NULL").
-		Joins("LEFT JOIN secgroup_ifaces ON secgroup_ifaces.interface_id = interfaces.id").
-		Joins("LEFT JOIN subnets AS site_subnets ON site_subnets.interface = interfaces.id AND site_subnets.deleted_at IS NULL").
-		Joins("LEFT JOIN addresses AS site_addresses ON site_addresses.subnet_id = site_subnets.id AND site_addresses.deleted_at IS NULL")
+	hasKeyword := strings.Contains(query, "organizations.")
+	hasSecgroup := strings.Contains(query, "secgroup_ifaces.")
+
+	joinDB := db.Model(&model.Instance{})
+
+	if hasKeyword || hasSecgroup {
+		joinDB = joinDB.Joins("LEFT JOIN interfaces ON interfaces.instance = instances.id AND interfaces.deleted_at IS NULL")
+	}
+	if hasKeyword {
+		joinDB = joinDB.
+			Joins("LEFT JOIN organizations ON organizations.id = instances.owner").
+			Joins("LEFT JOIN addresses ON addresses.interface = interfaces.id AND addresses.deleted_at IS NULL").
+			Joins("LEFT JOIN addresses AS addresses2 ON addresses2.second_interface = interfaces.id AND addresses2.deleted_at IS NULL").
+			Joins("LEFT JOIN floating_ips ON floating_ips.instance_id = instances.id AND floating_ips.deleted_at IS NULL").
+			Joins("LEFT JOIN subnets AS site_subnets ON site_subnets.interface = interfaces.id AND site_subnets.deleted_at IS NULL").
+			Joins("LEFT JOIN addresses AS site_addresses ON site_addresses.subnet_id = site_subnets.id AND site_addresses.deleted_at IS NULL")
+	}
+	if hasSecgroup {
+		joinDB = joinDB.Joins("LEFT JOIN secgroup_ifaces ON secgroup_ifaces.interface_id = interfaces.id")
+	}
 
 	if strings.Contains(query, "adjust_rule_group") {
 		joinDB = joinDB.
 			Joins("LEFT JOIN vm_rule_links AS adjust_rule_links ON adjust_rule_links.vm_uuid = instances.uuid AND adjust_rule_links.deleted_at IS NULL").
 			Joins("LEFT JOIN adjust_rule_group ON adjust_rule_group.uuid = adjust_rule_links.group_uuid AND adjust_rule_group.deleted_at IS NULL")
-	}
-
-	if strings.Contains(query, "fip_subnet") {
-		joinDB = joinDB.
-			Joins("LEFT JOIN subnets AS fip_subnet ON fip_subnet.id = floating_ips.subnet_id AND fip_subnet.deleted_at IS NULL")
 	}
 
 	// 计数
