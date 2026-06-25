@@ -163,7 +163,7 @@ func (a *SubnetAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interfac
 		subQuery := fmt.Sprintf(
 			"subnets.group_id IN (SELECT ig.id FROM ip_groups ig "+
 				"JOIN dictionaries d ON ig.type_id = d.id "+
-				"WHERE ig.type = 'system' AND %s)",
+				"WHERE ig.type = 'system' AND d.deleted_at IS NULL AND ig.deleted_at IS NULL AND %s)",
 			strings.Join(dictConds, " AND "))
 		conditions = append(conditions, subQuery)
 		logger.Debugf("Added sub_type filter: %s", subQuery)
