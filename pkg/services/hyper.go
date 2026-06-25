@@ -16,15 +16,12 @@ import (
 	. "github.com/maplerime/cl-query/pkg/common"
 )
 
-const freeHugepageExpr = "(resources.hugepage_size_kb * (resources.hugepages2_m_free + resources.hugepages1_g_free))"
-
 // hyperOrderFields 将 API 排序字段名映射到基于 LEFT JOIN resources 的 SQL 表达式。
 var hyperOrderFields = map[string]string{
 	"cpu":          "resources.cpu",
 	"memory":       "resources.memory",
 	"load_avg_5m":  "resources.load_avg5m",
 	"cpu_idle_pct": "resources.cpu_idle_pct",
-	"hugepage":     freeHugepageExpr,
 }
 
 type HyperAdmin struct{}
