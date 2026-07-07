@@ -15,10 +15,11 @@ package api
 
 import (
 	"context"
-	"github.com/maplerime/cl-query/utils/logging"
 	"net/http"
 	"strings"
 	"web/src/model"
+
+	"github.com/maplerime/cl-query/utils/logging"
 
 	"github.com/gin-gonic/gin"
 	. "github.com/maplerime/cl-query/pkg/common"
@@ -27,16 +28,20 @@ import (
 
 var logger = logging.MustGetLogger("api")
 
-type IPTreePublicItem struct {
-	SubnetID   string   `json:"subnet_id,omitempty"`
-	SubnetName string   `json:"subnet_name,omitempty"`
-	IPs        []string `json:"ips,omitempty"`
+// IPTreeSubnetItem is one subnet group in the IP tree, shared by both the
+// private and public sections of IPTreeResponse.
+type IPTreeSubnetItem struct {
+	SubnetID      string   `json:"subnet_id,omitempty"`
+	SubnetName    string   `json:"subnet_name,omitempty"`
+	SubnetNetwork string   `json:"subnet_network,omitempty"`
+	IPs           []string `json:"ips,omitempty"`
 }
 
+// IPTreeResponse is the response body of the instance subnet-ip-tree API.
 type IPTreeResponse struct {
 	VPC     *ResourceReference  `json:"vpc,omitempty"`
-	Private []string            `json:"private,omitempty"`
-	Public  []*IPTreePublicItem `json:"public,omitempty"`
+	Private []*IPTreeSubnetItem `json:"private,omitempty"`
+	Public  []*IPTreeSubnetItem `json:"public,omitempty"`
 }
 
 // IPTreeAPI IP树API结构体
@@ -87,10 +92,15 @@ func (api *IPTreeAPI) GetInstanceIPTree(c *gin.Context) {
 	c.JSON(http.StatusOK, api.buildIPTree(ctx, instance))
 }
 
+// buildIPTree assembles the IP tree of an instance: VPC info, private IPs
+// grouped by internal subnet, and public IPs (floating IPs and site subnet
+// IPs) grouped by their subnets. It always returns a non-nil response.
 func (api *IPTreeAPI) buildIPTree(ctx context.Context, instance *model.Instance) (response *IPTreeResponse) {
+	// Entry: building IP tree for the instance
+	logger.Debugf("buildIPTree started for instance %s", instance.UUID)
 	response = &IPTreeResponse{}
 
-	// 1. 处理VPC信息
+	// 1. VPC info comes from the instance router
 	if instance.RouterID > 0 && instance.Router != nil {
 		router := instance.Router
 		response.VPC = &ResourceReference{
@@ -99,80 +109,75 @@ func (api *IPTreeAPI) buildIPTree(ctx context.Context, instance *model.Instance)
 		}
 	}
 
-	// 用于避免重复添加的映射，同时保存子网信息
-	subnetInfoMap := make(map[string]struct {
-		Name string
-		IPs  []string
-	})
+	// Both private and public IPs are grouped by subnet UUID
+	privateMap := make(map[string]*IPTreeSubnetItem)
+	publicMap := make(map[string]*IPTreeSubnetItem)
 
+	// appendSubnetIP appends ip to the subnet entry in m, creating the entry
+	// with subnet metadata on first use
+	appendSubnetIP := func(m map[string]*IPTreeSubnetItem, subnet *model.Subnet, ip string) {
+		item, exists := m[subnet.UUID]
+		if !exists {
+			item = &IPTreeSubnetItem{
+				SubnetID:      subnet.UUID,
+				SubnetName:    subnet.Name,
+				SubnetNetwork: subnet.Network,
+			}
+			m[subnet.UUID] = item
+		}
+		item.IPs = append(item.IPs, ip)
+	}
+
+	// Walk all interfaces to collect private and public IPs
 	for _, iface := range instance.Interfaces {
 
-		// 内网IP
+		// Private IPs: grouped by their internal subnet
 		if iface.Address.Subnet.Type == "internal" {
-			response.Private = append(response.Private, strings.Split(iface.Address.Address, "/")[0])
+			appendSubnetIP(privateMap, iface.Address.Subnet, strings.Split(iface.Address.Address, "/")[0])
 		}
 
-		// 处理Floating IP
+		// Floating IPs and site subnets only attach to the primary interface
 		if iface.PrimaryIf {
 			if len(instance.FloatingIps) > 0 {
 				for _, fip := range instance.FloatingIps {
+					// Site-type floating IPs are covered by the site subnet branch below
 					if fip.Type != "site" && fip.Subnet != nil {
-						subnetKey := fip.Subnet.UUID
-						if _, exists := subnetInfoMap[subnetKey]; !exists {
-							subnetInfoMap[subnetKey] = struct {
-								Name string
-								IPs  []string
-							}{
-								Name: fip.Subnet.Name,
-								IPs:  []string{},
-							}
-						}
-						info := subnetInfoMap[subnetKey]
-						info.IPs = append(info.IPs, fip.IPAddress)
-						subnetInfoMap[subnetKey] = info
+						appendSubnetIP(publicMap, fip.Subnet, fip.IPAddress)
 					}
 				}
 			}
 
-			// 处理站群IP
+			// Site subnet IPs: all addresses of the subnet except the gateway
 			if len(iface.SiteSubnets) > 0 {
 				for _, siteSubnet := range iface.SiteSubnets {
-					subnetKey := siteSubnet.UUID
 					addresses, err := api.subnetService.GetAddressesBySubnet(ctx, siteSubnet.ID)
 					if err != nil {
+						// Skip this site subnet but keep building the rest of the tree
 						logger.Errorf("Failed to get addresses for site subnet %s: %v", siteSubnet.UUID, err)
 						continue
 					}
 
-					if _, exists := subnetInfoMap[subnetKey]; !exists {
-						subnetInfoMap[subnetKey] = struct {
-							Name string
-							IPs  []string
-						}{
-							Name: siteSubnet.Name,
-							IPs:  []string{},
-						}
-					}
-
-					info := subnetInfoMap[subnetKey]
 					for _, addr := range addresses {
+						// The gateway address is not usable by the instance
 						if addr.Address != siteSubnet.Gateway {
-							info.IPs = append(info.IPs, strings.Split(addr.Address, "/")[0])
+							appendSubnetIP(publicMap, siteSubnet, strings.Split(addr.Address, "/")[0])
 						}
 					}
-					subnetInfoMap[subnetKey] = info
 				}
 			}
 		}
 	}
 
-	for subnetID, info := range subnetInfoMap {
-		response.Public = append(response.Public, &IPTreePublicItem{
-			SubnetID:   subnetID,
-			SubnetName: info.Name,
-			IPs:        info.IPs,
-		})
+	// Flatten the grouping maps into the response arrays
+	for _, item := range privateMap {
+		response.Private = append(response.Private, item)
+	}
+	for _, item := range publicMap {
+		response.Public = append(response.Public, item)
 	}
 
+	// Exit: report how many subnet groups were built
+	logger.Debugf("buildIPTree finished for instance %s: %d private subnets, %d public subnets",
+		instance.UUID, len(response.Private), len(response.Public))
 	return response
 }
