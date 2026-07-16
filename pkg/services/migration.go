@@ -97,6 +97,8 @@ func (a *MigrationAdmin) GetMigration(ctx context.Context, reference *BaseRefere
 	return
 }
 
+// List returns paginated migrations with Instance and Phases preloaded.
+// query is a raw WHERE clause fragment built by the adapter layer (MakeQuery).
 func (a *MigrationAdmin) List(ctx context.Context, offset, limit int64, order, query string) (total int64, migrations []*model.Migration, err error) {
 	ctx, db := GetContextDB(ctx)
 	if limit == 0 {
@@ -107,9 +109,6 @@ func (a *MigrationAdmin) List(ctx context.Context, offset, limit int64, order, q
 		order = "created_at"
 	}
 
-	if query != "" {
-		query = fmt.Sprintf("name like '%%%s%%'", query)
-	}
 	migrations = []*model.Migration{}
 	if err = db.Model(&model.Migration{}).Where(query).Count(&total).Error; err != nil {
 		err = NewCLError(ErrSQLSyntaxError, "Failed to count migrations", err)
