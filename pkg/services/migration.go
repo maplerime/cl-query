@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"web/src/model"
 
+	"github.com/jinzhu/gorm"
+
 	"github.com/maplerime/cl-query/pkg/dbs"
 
 	. "github.com/maplerime/cl-query/pkg/common"
@@ -19,10 +21,16 @@ import (
 
 type MigrationAdmin struct{}
 
+// unscopedPreload 取消 Preload 的软删除过滤，用于取回已软删的关联记录
+// （迁移记录是历史数据，实例被软删后仍需展示其信息）
+var unscopedPreload = func(db *gorm.DB) *gorm.DB {
+	return db.Unscoped()
+}
+
 func (a *MigrationAdmin) GetMigrationByUUID(ctx context.Context, uuID string) (migration *model.Migration, err error) {
 	ctx, db := GetContextDB(ctx)
 	migration = &model.Migration{}
-	err = db.Preload("Instance").Preload("Phases").Where("uuid = ?", uuID).Take(migration).Error
+	err = db.Preload("Instance", unscopedPreload).Preload("Phases").Where("uuid = ?", uuID).Take(migration).Error
 	if err != nil {
 		logger.Error("Failed to query migration, %v", err)
 		err = NewCLError(ErrMigrationNotFound, "Failed to find migration", err)
@@ -115,7 +123,7 @@ func (a *MigrationAdmin) List(ctx context.Context, offset, limit int64, order, q
 		return
 	}
 	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
-	if err = db.Preload("Instance").Preload("Phases").Where(query).Find(&migrations).Error; err != nil {
+	if err = db.Preload("Instance", unscopedPreload).Preload("Phases").Where(query).Find(&migrations).Error; err != nil {
 		err = NewCLError(ErrSQLSyntaxError, "Failed to query migrations", err)
 		return
 	}

@@ -38,16 +38,18 @@ type MigrationPhaseResponse struct {
 // MigrationResponse 迁移任务响应：实例、源/目标节点信息平铺，供上层服务直接使用
 type MigrationResponse struct {
 	*ResourceReference
-	InstanceID       string                    `json:"instance_id"`
-	InstanceHostname string                    `json:"instance_hostname"`
-	SourceHyper      int32                     `json:"source_hyper"`
-	SourceHyperName  string                    `json:"source_hyper_name"`
-	TargetHyper      int32                     `json:"target_hyper"`
-	TargetHyperName  string                    `json:"target_hyper_name"`
-	Force            bool                      `json:"force"`
-	Type             string                    `json:"type"`
-	Status           string                    `json:"status"`
-	Phases           []*MigrationPhaseResponse `json:"phases"`
+	InstanceID        string                    `json:"instance_id"`
+	InstanceHostname  string                    `json:"instance_hostname"`
+	InstanceStatus    string                    `json:"instance_status"`
+	InstanceDeletedAt string                    `json:"instance_deleted_at"` // 实例软删除时间，空串表示未删除
+	SourceHyper       int32                     `json:"source_hyper"`
+	SourceHyperName   string                    `json:"source_hyper_name"`
+	TargetHyper       int32                     `json:"target_hyper"`
+	TargetHyperName   string                    `json:"target_hyper_name"`
+	Force             bool                      `json:"force"`
+	Type              string                    `json:"type"`
+	Status            string                    `json:"status"`
+	Phases            []*MigrationPhaseResponse `json:"phases"`
 }
 
 // MigrationListResponse 迁移任务列表响应
@@ -103,10 +105,11 @@ func (a *MigrationAdapter) MakeQuery(c *gin.Context, filtersMap map[string]inter
 
 	var conditions []string
 
-	// instance hostname 过滤：migrations 表无 hostname，经 instances 表子查询关联
+	// instance hostname 过滤：migrations 表无 hostname，经 instances 表子查询关联。
+	// 不过滤软删除：迁移记录是历史数据，实例删除后仍需按 hostname 搜到其迁移历史
 	if filters.Hostname != "" {
 		conditions = append(conditions, fmt.Sprintf(
-			"instance_id IN (SELECT id FROM instances WHERE hostname LIKE '%%%s%%' AND deleted_at IS NULL)",
+			"instance_id IN (SELECT id FROM instances WHERE hostname LIKE '%%%s%%')",
 			filters.Hostname))
 		logger.Debugf("Added instance hostname filter: %s", filters.Hostname)
 	}
@@ -211,10 +214,15 @@ func (a *MigrationAdapter) getMigrationResponse(ctx context.Context, migration *
 		Status:      migration.Status,
 	}
 
-	// instance 信息平铺（关联缺失时保持空值）
+	// instance 信息平铺（Preload 已 Unscoped，软删实例也会取回；关联缺失时保持空值）
 	if migration.Instance != nil {
 		migrationResp.InstanceID = migration.Instance.UUID
 		migrationResp.InstanceHostname = migration.Instance.Hostname
+		migrationResp.InstanceStatus = string(migration.Instance.Status)
+		// 软删除时间，未删除时保持空串
+		if migration.Instance.DeletedAt != nil {
+			migrationResp.InstanceDeletedAt = migration.Instance.DeletedAt.Format(TimeStringForMat)
+		}
 	}
 
 	// 源/目标 hyper 名称：SourceHyper/TargetHyper 存的是 hypers.hostid，按 hostid 批量查询。
