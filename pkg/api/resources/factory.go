@@ -71,6 +71,9 @@ func NewAdapterFactory() *AdapterFactory {
 	factory.Register("zone", func() adapters.ResourceAdapter {
 		return adapters.NewZoneAdapter()
 	})
+	factory.Register("migration", func() adapters.ResourceAdapter {
+		return adapters.NewMigrationAdapter()
+	})
 	return factory
 }
 
