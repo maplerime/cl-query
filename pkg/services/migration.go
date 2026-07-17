@@ -27,10 +27,16 @@ var unscopedPreload = func(db *gorm.DB) *gorm.DB {
 	return db.Unscoped()
 }
 
+// orderedPhases Phases 按创建顺序（id 升序）预加载。
+// gorm Preload 默认不带 ORDER BY，行序不保证，上层按此顺序展示迁移阶段进度
+var orderedPhases = func(db *gorm.DB) *gorm.DB {
+	return db.Order("id ASC")
+}
+
 func (a *MigrationAdmin) GetMigrationByUUID(ctx context.Context, uuID string) (migration *model.Migration, err error) {
 	ctx, db := GetContextDB(ctx)
 	migration = &model.Migration{}
-	err = db.Preload("Instance", unscopedPreload).Preload("Phases").Where("uuid = ?", uuID).Take(migration).Error
+	err = db.Preload("Instance", unscopedPreload).Preload("Phases", orderedPhases).Where("uuid = ?", uuID).Take(migration).Error
 	if err != nil {
 		logger.Error("Failed to query migration, %v", err)
 		err = NewCLError(ErrMigrationNotFound, "Failed to find migration", err)
@@ -123,7 +129,7 @@ func (a *MigrationAdmin) List(ctx context.Context, offset, limit int64, order, q
 		return
 	}
 	db = dbs.Sortby(db.Offset(offset).Limit(limit), order)
-	if err = db.Preload("Instance", unscopedPreload).Preload("Phases").Where(query).Find(&migrations).Error; err != nil {
+	if err = db.Preload("Instance", unscopedPreload).Preload("Phases", orderedPhases).Where(query).Find(&migrations).Error; err != nil {
 		err = NewCLError(ErrSQLSyntaxError, "Failed to query migrations", err)
 		return
 	}
