@@ -38,6 +38,8 @@ var logger = logging.MustGetLogger("resource-controller")
 // @Failure 400 {object} APIError "请求参数错误"
 // @Failure 500 {object} APIError "服务器内部错误"
 // @Router /query/resources [post]
+// @Security JwtAuth
+// @Security ApiKeyAuth
 func QueryResources(c *gin.Context) {
 	bodyBytes, err := io.ReadAll(c.Request.Body)
 	if err != nil {
@@ -104,6 +106,8 @@ func QueryResources(c *gin.Context) {
 // @Failure 404 {object} APIError "资源不存在"
 // @Failure 500 {object} APIError "服务器内部错误"
 // @Router /query/resources/{resource_type}/{id} [get]
+// @Security JwtAuth
+// @Security ApiKeyAuth
 func GetResource(c *gin.Context) {
 	resourceType := c.Param("resource_type")
 	id := c.Param("id")
