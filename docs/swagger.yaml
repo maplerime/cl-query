@@ -1,4 +1,4 @@
-basePath: /query/v1
+basePath: /api/v1
 definitions:
   adapters.ResourceQueryRequest:
     properties:
@@ -27,6 +27,10 @@ definitions:
     type: object
   common.APIError:
     properties:
+      error_code:
+        type: integer
+      error_code_str:
+        type: string
       error_message:
         type: string
     type: object
@@ -43,7 +47,7 @@ info:
   title: PETACLOUID Query Service API
   version: 1.0.0
 paths:
-  /query/v1/resources:
+  /query/resources:
     post:
       consumes:
       - application/json
@@ -69,10 +73,13 @@ paths:
           description: 服务器内部错误
           schema:
             $ref: '#/definitions/common.APIError'
+      security:
+      - JwtAuth: []
+      - ApiKeyAuth: []
       summary: 统一资源查询
       tags:
-      - 资源查询
-  /query/v1/resources/{resource_type}/{id}:
+      - Resource
+  /query/resources/{resource_type}/{id}:
     get:
       description: 通过资源类型和 ID 获取单个资源的详细信息
       parameters:
@@ -111,9 +118,12 @@ paths:
           description: 服务器内部错误
           schema:
             $ref: '#/definitions/common.APIError'
+      security:
+      - JwtAuth: []
+      - ApiKeyAuth: []
       summary: 获取单个资源详情
       tags:
-      - 资源查询
+      - Resource
 securityDefinitions:
   ApiKeyAuth:
     in: header

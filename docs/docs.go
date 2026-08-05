@@ -20,8 +20,16 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/query/v1/resources": {
+        "/query/resources": {
             "post": {
+                "security": [
+                    {
+                        "JwtAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "通过资源类型查询不同类型的资源列表",
                 "consumes": [
                     "application/json"
@@ -30,7 +38,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "资源查询"
+                    "Resource"
                 ],
                 "summary": "统一资源查询",
                 "parameters": [
@@ -64,14 +72,22 @@ const docTemplate = `{
                 }
             }
         },
-        "/query/v1/resources/{resource_type}/{id}": {
+        "/query/resources/{resource_type}/{id}": {
             "get": {
+                "security": [
+                    {
+                        "JwtAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "通过资源类型和 ID 获取单个资源的详细信息",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "资源查询"
+                    "Resource"
                 ],
                 "summary": "获取单个资源详情",
                 "parameters": [
@@ -162,6 +178,12 @@ const docTemplate = `{
         "common.APIError": {
             "type": "object",
             "properties": {
+                "error_code": {
+                    "type": "integer"
+                },
+                "error_code_str": {
+                    "type": "string"
+                },
                 "error_message": {
                     "type": "string"
                 }
@@ -190,7 +212,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0.0",
 	Host:             "",
-	BasePath:         "/query/v1",
+	BasePath:         "/api/v1",
 	Schemes:          []string{},
 	Title:            "PETACLOUID Query Service API",
 	Description:      "PetaCloud Query Service",
