@@ -171,7 +171,7 @@ func (a *VPCAdapter) getVPCResponse(ctx context.Context, router *model.Router) (
 	}
 	vpcResp.Subnets = make([]*SubnetResponse, len(router.Subnets))
 	for i, subnet := range router.Subnets {
-		vpcResp.Subnets[i], err = subnetAdapter.getSubnetResponse(ctx, subnet)
+		vpcResp.Subnets[i], err = subnetAdapter.getSubnetResponse(ctx, subnet, nil)
 		if err != nil {
 			return
 		}

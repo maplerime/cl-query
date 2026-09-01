@@ -27,6 +27,26 @@ var (
 
 type SubnetAdmin struct{}
 
+type SubnetStats struct {
+	IPCount        int64
+	AllocatedCount int64
+	ReservedCount  int64
+	IdleCount      int64
+}
+
+type SubnetWithStats struct {
+	Subnet *model.Subnet
+	Stats  *SubnetStats
+}
+
+type subnetStatRow struct {
+	ID             int64 `gorm:"column:id"`
+	IPCount        int64 `gorm:"column:stat_ip_count"`
+	AllocatedCount int64 `gorm:"column:stat_allocated_count"`
+	ReservedCount  int64 `gorm:"column:stat_reserved_count"`
+	IdleCount      int64 `gorm:"column:stat_idle_count"`
+}
+
 func init() {
 	rand.Seed(time.Now().UnixNano())
 	return
@@ -176,7 +196,7 @@ func (a *SubnetAdmin) CountIdleAddressesForSubnet(ctx context.Context, subnet *m
 	return idleCount, nil
 }
 
-func (a *SubnetAdmin) List(ctx context.Context, offset, limit int64, order, query string, hasIdleIP bool) (total int64, subnets []*model.Subnet, err error) {
+func (a *SubnetAdmin) List(ctx context.Context, offset, limit int64, order, query string, hasIdleIP bool) (total int64, subnets []*SubnetWithStats, err error) {
 	ctx, db := GetContextDB(ctx)
 	if limit == 0 {
 		limit = 16
@@ -193,52 +213,75 @@ func (a *SubnetAdmin) List(ctx context.Context, offset, limit int64, order, quer
 	} else {
 		where = fmt.Sprintf("subnets.owner = %d", m.OrgID)
 	}
-	subnets = []*model.Subnet{}
+	subnets = []*SubnetWithStats{}
 
-	// 始终连接 addresses 表
-	baseQuery := db.
-		Model(&model.Subnet{}).
-		Joins("LEFT JOIN addresses ON subnets.id = addresses.subnet_id").
+	// 别名带 stat_ 前缀，避免与 subnets.* 带出的列撞名；adapters 的 subnetOrderMap 引用这些别名。
+	// 开头的 subnets.* 不能删：ORDER BY 优先匹配 SELECT 的输出列名，否则 created_at 这类
+	// 两表同名的列会歧义（默认排序就是 -created_at）。
+	statsSelect := "subnets.*, " +
+		"COUNT(a.id) AS stat_ip_count, " +
+		"COALESCE(SUM(CASE WHEN a.allocated = 't' AND (a.interface != 0 or a.second_interface != 0) THEN 1 ELSE 0 END), 0) AS stat_allocated_count, " +
+		"COALESCE(SUM(CASE WHEN a.reserved = 't' THEN 1 ELSE 0 END), 0) AS stat_reserved_count, " +
+		"COALESCE(SUM(CASE WHEN a.allocated = 'f' AND a.reserved = 'f' THEN 1 ELSE 0 END), 0) AS stat_idle_count"
+
+	baseQuery := db.Model(&model.Subnet{}).
+		Joins("LEFT JOIN addresses a ON a.subnet_id = subnets.id AND a.deleted_at IS NULL AND a.address != COALESCE(subnets.gateway, '')").
 		Where(where).
-		Where(query)
+		Where(query).
+		Group("subnets.id").
+		Select(statsSelect)
 
 	if hasIdleIP {
-		baseQuery = baseQuery.
-			Where("addresses.allocated = ? AND addresses.reserved = ? AND addresses.address != subnets.gateway",
-				false,
-				false,
-			)
+		baseQuery = baseQuery.Where("EXISTS (SELECT 1 FROM addresses a3 WHERE a3.subnet_id = subnets.id AND a3.deleted_at IS NULL AND a3.address != COALESCE(subnets.gateway, '') AND a3.allocated = 'f' AND a3.reserved = 'f')")
 	}
 
-	baseQuery = baseQuery.Group("subnets.id")
-
-	// 计算总数
 	if err = baseQuery.Count(&total).Error; err != nil {
 		err = NewCLError(ErrSQLSyntaxError, "Database failed to count subnets", err)
 		return
 	}
 
-	// 查询结果
-	resultQuery := baseQuery.Select("subnets.*").Offset(offset).Limit(limit)
-	resultQuery = dbs.Sortby(resultQuery, order)
-	if err = resultQuery.Preload("Group").Preload("Router").Find(&subnets).Error; err != nil {
+	// 第一段：聚合出 ID 与四个计数
+	var rows []subnetStatRow
+	statQuery := dbs.Sortby(baseQuery.Offset(offset).Limit(limit), order)
+	if err = statQuery.Scan(&rows).Error; err != nil {
 		err = NewCLError(ErrSQLSyntaxError, "Database failed to query subnets", err)
 		return
 	}
-
-	permit := m.CheckPermission(model.Admin)
-	if permit {
-		ownerQuery := db.Offset(0).Limit(-1)
-		for _, subnet := range subnets {
-			subnet.OwnerInfo = &model.Organization{Model: model.Model{ID: subnet.Owner}}
-			if err = ownerQuery.Take(subnet.OwnerInfo).Error; err != nil {
-				logger.Error("Failed to query owner info", err)
-				err = NewCLError(ErrUserNotFound, "Failed to query owner info", err)
-				return
-			}
-		}
+	if len(rows) == 0 {
+		return
 	}
 
+	// 第二段：按 ID 装配完整对象
+	ids := make([]int64, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, row.ID)
+	}
+	records := []*model.Subnet{}
+	if err = db.Preload("Group").Preload("Router").Where("id IN (?)", ids).Find(&records).Error; err != nil {
+		err = NewCLError(ErrSQLSyntaxError, "Database failed to query subnets", err)
+		return
+	}
+	recordMap := make(map[int64]*model.Subnet, len(records))
+	for _, record := range records {
+		recordMap[record.ID] = record
+	}
+
+	// IN 查询不保证顺序，按第一段的顺序回排
+	for _, row := range rows {
+		record, ok := recordMap[row.ID]
+		if !ok {
+			continue
+		}
+		subnets = append(subnets, &SubnetWithStats{
+			Subnet: record,
+			Stats: &SubnetStats{
+				IPCount:        row.IPCount,
+				AllocatedCount: row.AllocatedCount,
+				ReservedCount:  row.ReservedCount,
+				IdleCount:      row.IdleCount,
+			},
+		})
+	}
 	return
 }
 
