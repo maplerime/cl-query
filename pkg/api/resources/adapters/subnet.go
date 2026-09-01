@@ -91,6 +91,33 @@ func NewSubnetAdapter() *SubnetAdapter {
 	}
 }
 
+var subnetOrderMap = map[string]string{
+	"priority":         "subnets.priority ASC, subnets.id ASC",
+	"-priority":        "subnets.priority DESC, subnets.id ASC",
+	"ip_count":         "stat_ip_count ASC, subnets.id ASC",
+	"-ip_count":        "stat_ip_count DESC, subnets.id ASC",
+	"allocated_count":  "stat_allocated_count ASC, subnets.id ASC",
+	"-allocated_count": "stat_allocated_count DESC, subnets.id ASC",
+	"reserved_count":   "stat_reserved_count ASC, subnets.id ASC",
+	"-reserved_count":  "stat_reserved_count DESC, subnets.id ASC",
+	"idle_count":       "stat_idle_count ASC, subnets.id ASC",
+	"-idle_count":      "stat_idle_count DESC, subnets.id ASC",
+}
+
+func subnetOrderClause(order string) string {
+	if clause, ok := subnetOrderMap[strings.TrimSpace(order)]; ok {
+		return clause
+	}
+	return order
+}
+
+func subnetNameCondition(name string) string {
+	return fmt.Sprintf(
+		"(subnets.name LIKE '%%%s%%' OR EXISTS (SELECT 1 FROM addresses a2 "+
+			"WHERE a2.subnet_id = subnets.id AND a2.deleted_at IS NULL AND a2.address LIKE '%%%s%%'))",
+		name, name)
+}
+
 func (a *SubnetAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interface{}) (query string, err error) {
 	logger.Debugf("Processing Subnet filters: %+v", filtersMap)
 	ctx := c.Request.Context()
@@ -104,8 +131,7 @@ func (a *SubnetAdapter) MakeQuery(c *gin.Context, filtersMap map[string]interfac
 
 	// 名字/IP
 	if filters.Name != "" {
-		queryStr := fmt.Sprintf("(subnets.name like '%%%s%%' OR addresses.address like '%%%s%%')", filters.Name, filters.Name)
-		conditions = append(conditions, queryStr)
+		conditions = append(conditions, subnetNameCondition(filters.Name))
 	}
 
 	// UUIDS
@@ -207,9 +233,7 @@ func (a *SubnetAdapter) List(c *gin.Context, req *ResourceQueryRequest) (interfa
 	}
 
 	// 调用 service 层
-	if req.Order == "priority" {
-		req.Order = "subnets.priority asc, subnets.id asc"
-	}
+	req.Order = subnetOrderClause(req.Order)
 	total, subnets, err := a.service.List(ctx, int64(req.Offset), int64(req.Limit), req.Order, query, hasIdleIP)
 	if err != nil {
 		logger.Errorf("Service layer query failed: %v", err)
@@ -224,8 +248,8 @@ func (a *SubnetAdapter) List(c *gin.Context, req *ResourceQueryRequest) (interfa
 		Limit:  len(subnets),
 	}
 	subnetListResp.Subnets = make([]*SubnetResponse, subnetListResp.Limit)
-	for i, subnet := range subnets {
-		subnetListResp.Subnets[i], err = a.getSubnetResponse(ctx, subnet)
+	for i, item := range subnets {
+		subnetListResp.Subnets[i], err = a.getSubnetResponse(ctx, item.Subnet, item.Stats)
 		if err != nil {
 			return nil, err
 		}
@@ -242,14 +266,14 @@ func (a *SubnetAdapter) Get(c *gin.Context, id string) (resp interface{}, err er
 		return
 	}
 
-	resp, err = a.getSubnetResponse(ctx, subnet)
+	resp, err = a.getSubnetResponse(ctx, subnet, nil)
 	if err != nil {
 		return
 	}
 	return
 }
 
-func (a *SubnetAdapter) getSubnetResponse(ctx context.Context, subnet *model.Subnet) (subnetResp *SubnetResponse, err error) {
+func (a *SubnetAdapter) getSubnetResponse(ctx context.Context, subnet *model.Subnet, stats *services.SubnetStats) (subnetResp *SubnetResponse, err error) {
 	owner := orgAdmin.GetOrgName(ctx, subnet.Owner)
 	subnetResp = &SubnetResponse{
 		ResourceReference: &ResourceReference{
@@ -283,16 +307,24 @@ func (a *SubnetAdapter) getSubnetResponse(ctx context.Context, subnet *model.Sub
 			Name: group.Name,
 		}
 	}
-	var total, allocated, reserved, idle int64
-	total, allocated, reserved, idle, err = a.service.AddressStatistics(ctx, subnet)
-	if err != nil {
-		logger.Errorf("Failed to count addresses for subnet, err=%v", err)
-		return
+	if stats == nil {
+		var total, allocated, reserved, idle int64
+		total, allocated, reserved, idle, err = a.service.AddressStatistics(ctx, subnet)
+		if err != nil {
+			logger.Errorf("Failed to count addresses for subnet, err=%v", err)
+			return
+		}
+		stats = &services.SubnetStats{
+			IPCount:        total,
+			AllocatedCount: allocated,
+			ReservedCount:  reserved,
+			IdleCount:      idle,
+		}
 	}
-	subnetResp.IPCount = total
-	subnetResp.AllocatedCount = allocated
-	subnetResp.ReservedCount = reserved
-	subnetResp.IdleCount = idle
+	subnetResp.IPCount = stats.IPCount
+	subnetResp.AllocatedCount = stats.AllocatedCount
+	subnetResp.ReservedCount = stats.ReservedCount
+	subnetResp.IdleCount = stats.IdleCount
 
 	return
 }
