@@ -182,12 +182,9 @@ func (api *StatisticsAPI) Resources(c *gin.Context) {
 					cpuTotal += hyper.Resource.CpuTotal
 					// 挨个hyper统计已用和空闲计算节点,并追加到zone中
 					usedHyper := float64(hyper.Resource.CpuTotal-hyper.Resource.Cpu) / float64(hyper.CpuOverRate) / cpuCore
-					freeHyper := float64(hyper.Resource.Cpu) / float64(hyper.CpuOverRate) / cpuCore
-					// 剩余内存低于最小可售规格(1G)时该节点已无法再分配虚机, 不计入空闲计算节点数
-					// Resource.Memory 单位为KB
-					if hyper.Resource.Memory < 1024*1024 {
-						freeHyper = 0
-					}
+					// 空闲CPU需有对应内存才可售出, 按1个可售CPU配2G内存折算(Resource.Memory 单位为KB)
+					effectiveCpu := min(float64(hyper.Resource.Cpu), float64(hyper.Resource.Memory)/(2*1024*1024))
+					freeHyper := effectiveCpu / float64(hyper.CpuOverRate) / cpuCore
 					zoneData[i].UsedHyperCount += usedHyper
 					zoneData[i].FreeHyperCount += freeHyper
 				}
