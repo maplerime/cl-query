@@ -15,25 +15,33 @@ package main
 
 import (
 	"context"
-	"github.com/maplerime/cl-query/pkg/api"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/maplerime/cl-query/docs"
+	"github.com/maplerime/cl-query/pkg/api"
+	"github.com/maplerime/cl-query/pkg/api/middleware"
 	"github.com/maplerime/cl-query/pkg/api/resources"
+	"github.com/maplerime/cl-query/pkg/common"
+	"github.com/maplerime/cl-query/pkg/tracing"
 	swaggerfiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
-
 	"golang.org/x/time/rate"
-
-	"github.com/maplerime/cl-query/docs"
-	"github.com/maplerime/cl-query/pkg/api/middleware"
-	"github.com/maplerime/cl-query/pkg/common"
 )
 
 func ContextMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// setup context in gin
-
-		// ...
+		traceID := c.GetHeader("X-Trace-ID")
+		if traceID == "" {
+			traceID = c.GetHeader("X-Request-ID")
+		}
+		if traceID == "" {
+			traceID = "TRC-" + uuid.New().String()[:8]
+		}
+		ctx := context.WithValue(c.Request.Context(), common.MiddlewareRequestIdCtxKey, traceID)
+		ctx = tracing.NewId(ctx)
+		c.Request = c.Request.WithContext(ctx)
+		c.Header("X-Trace-ID", traceID)
 		c.Next()
 	}
 }
