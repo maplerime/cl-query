@@ -41,7 +41,8 @@ func Logger() gin.HandlerFunc {
 			c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
 		}
 
-		message := fmt.Sprintf("Request Method: %s, Path: %s, Status: %d, Content-Length: %s, Content-Type: %s, Duration: %s, IP: %s, Origin: %s, User-Agent: %s, Errors: %s, Body:\n%s",
+		message := fmt.Sprintf("[%s] Request Method: %s, Path: %s, Status: %d, Content-Length: %s, Content-Type: %s, Duration: %s, IP: %s, Origin: %s, User-Agent: %s, Errors: %s, Body:\n%s",
+			c.Writer.Header().Get("X-Trace-ID"),
 			c.Request.Method,
 			c.Request.URL.Path,
 			c.Writer.Status(),
