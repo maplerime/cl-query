@@ -24,6 +24,7 @@ import (
 	"github.com/maplerime/cl-query/pkg/api/resources"
 	"github.com/maplerime/cl-query/pkg/common"
 	"github.com/maplerime/cl-query/pkg/tracing"
+	"github.com/maplerime/cl-query/utils/logging"
 	swaggerfiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"golang.org/x/time/rate"
@@ -42,6 +43,8 @@ func ContextMiddleware() gin.HandlerFunc {
 		ctx = tracing.NewId(ctx)
 		c.Request = c.Request.WithContext(ctx)
 		c.Header("X-Trace-ID", traceID)
+		logging.SetGoroutineTrace(traceID)
+		defer logging.ClearGoroutineTrace()
 		c.Next()
 	}
 }
