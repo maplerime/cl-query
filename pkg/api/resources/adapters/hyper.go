@@ -35,6 +35,7 @@ type HyperResponse struct {
 	HostIP          string  `json:"host_ip"`
 	RouteIP         string  `json:"route_ip"`
 	VirtType        string  `json:"virt_type"`
+	CpuModel        string  `json:"cpu_model"`
 	CpuOverRate     float32 `json:"cpu_over_rate"`
 	MemOverRate     float32 `json:"mem_over_rate"`
 	DiskOverRate    float32 `json:"disk_over_rate"`
@@ -195,6 +196,7 @@ func (a *HyperAdapter) getHyperResponse(ctx context.Context, hyper *model.Hyper)
 		HostIP:       hyper.HostIP,
 		RouteIP:      hyper.RouteIP,
 		VirtType:     hyper.VirtType,
+		CpuModel:     hyper.CpuModel,
 		CpuOverRate:  hyper.CpuOverRate,
 		MemOverRate:  hyper.MemOverRate,
 		DiskOverRate: hyper.DiskOverRate,
