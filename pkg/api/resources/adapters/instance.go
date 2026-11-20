@@ -332,10 +332,10 @@ func (a *InstanceAdapter) getInstanceResponse(ctx context.Context, instance *mod
 		Cpu:         instance.Cpu,
 		Memory:      instance.Memory,
 		Disk:        instance.Disk,
-		Username:    instance.Image.UserName,
 		PasswdLogin: instance.PasswdLogin,
 	}
 	if instance.Image != nil {
+		instanceResp.Username = instance.Image.UserName
 		instanceResp.Image = &ResourceReference{
 			ID:   instance.Image.UUID,
 			Name: instance.Image.Name,
