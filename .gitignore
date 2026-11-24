@@ -13,3 +13,7 @@ vendor/
 /**/.DS_Store
 imagename
 image.latest
+/etc/cl-query.yaml
+/etc/*.pem
+/etc/keys/
+/CLAUDE.md

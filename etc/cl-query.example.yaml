@@ -11,7 +11,7 @@ RPCSvc:
         # Listen address: The IP on which to bind to listen.
         ListenAddress: 0.0.0.0
         # Listen port: The port on which to bind to listen.
-        ListenPort: 8765
+        ListenPort: 8766
         AllowedOrigins:
             - http://127.0.0.1
             - http://127.0.0.1:8001
@@ -52,7 +52,7 @@ DebugMode: true
 
 Database:
     Type: "postgres"
-    Url: "host=127.0.0.1 port=15432 user=postgres password=passw0rd dbname=cloudland sslmode=disable"
+    Url: "host=<db-host> port=15432 user=<db-user> password=<db-password> dbname=<db-name> sslmode=disable"
     Debug: true
     Open: 50
     Lifetime: 30
@@ -65,3 +65,10 @@ Token:
     ExpiresAt: 2h
     PublicKey: ./etc/public.pem
     PrivateKey: ./etc/private.pem
+
+WDS:
+    Endpoint: <wds-endpoint>
+    Username: <wds-username>
+    Password: <wds-password>
+    Region: default
+    Az: default

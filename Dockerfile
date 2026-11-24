@@ -12,7 +12,6 @@ ENV LC_ALL=C.UTF-8
 
 WORKDIR /opt/cl-query
 COPY --chown=${USER_UID}:${USER_GID} ./build/bin/* ./
-COPY --chown=${USER_UID}:${USER_GID} ./etc ./etc
 COPY --chown=${USER_UID}:${USER_GID} ./version ./
 COPY --chown=${USER_UID}:${USER_GID} ./docs ./docs
 
